@@ -44,7 +44,8 @@ export function render(ctx: CanvasRenderingContext2D, g: Game, o: RenderOpts) {
   drawArena(ctx, g, t);
   if (o.trails) for (const b of g.balls) if (b.alive) drawTrail(ctx, b);
   for (const a of g.arrows) {
-    drawArrow(ctx, a.x, a.y, Math.atan2(a.vy, a.vx), a.owner.color, PX * a.owner.scale);
+    if (a.kind === 'bullet') drawBullet(ctx, a.x, a.y, a.vx, a.vy, PX * a.owner.scale);
+    else drawArrow(ctx, a.x, a.y, Math.atan2(a.vy, a.vx), a.owner.color, PX * a.owner.scale);
   }
   for (const b of g.balls) if (b.alive) drawBody(ctx, b);
   for (const b of g.balls) if (b.alive) b.weapon.draw(ctx, b);
@@ -242,6 +243,21 @@ function drawHpLabel(ctx: CanvasRenderingContext2D, b: Ball) {
   ctx.strokeText(s, b.x, b.y + 2);
   ctx.fillStyle = '#ffffff';
   ctx.fillText(s, b.x, b.y + 2);
+  ctx.restore();
+}
+
+/** A dark pixel ball with a short fading streak behind it. */
+function drawBullet(ctx: CanvasRenderingContext2D, x: number, y: number, vx: number, vy: number, P: number) {
+  const s = Math.hypot(vx, vy) || 1;
+  ctx.save();
+  for (let i = 4; i >= 1; i--) {
+    ctx.globalAlpha = 0.5 * (1 - i / 5);
+    ctx.fillStyle = '#FFB703';
+    ctx.fillRect(x - (vx / s) * i * P * 1.6 - P / 2, y - (vy / s) * i * P * 1.6 - P / 2, P, P);
+  }
+  ctx.globalAlpha = 1;
+  ctx.fillStyle = INK;
+  ctx.fillRect(x - P, y - P, P * 2, P * 2);
   ctx.restore();
 }
 

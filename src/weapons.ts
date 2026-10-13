@@ -1,9 +1,9 @@
 import { TAU, fmt, type Capsule, type Vec } from './math';
-import { ARROW, BOW, COLLAR, DAGGER, HAMMER_HEAD, PX, SCYTHE_BLADE, SPEAR_HEAD, SWORD, drawOnAxis, drawShaft, drawSprite, spriteSize } from './pixel';
+import { ARROW, BOW, MUSKET, COLLAR, DAGGER, HAMMER_HEAD, PX, SCYTHE_BLADE, SPEAR_HEAD, SWORD, drawOnAxis, drawShaft, drawSprite, spriteSize } from './pixel';
 import type { Ball } from './ball';
 import type { Game } from './game';
 
-export type WeaponKind = 'sword' | 'dagger' | 'spear' | 'hammer' | 'scythe' | 'bow' | 'unarmed';
+export type WeaponKind = 'sword' | 'dagger' | 'spear' | 'hammer' | 'scythe' | 'bow' | 'musket' | 'unarmed';
 
 export const WEAPON_INFO: Record<WeaponKind, { label: string; color: string; blurb: string }> = {
   sword: { label: 'Sword', color: '#E63946', blurb: '+1 damage every hit' },
@@ -12,6 +12,7 @@ export const WEAPON_INFO: Record<WeaponKind, { label: string; color: string; blu
   hammer: { label: 'Hammer', color: '#7B4FD6', blurb: 'Massive knockback, head grows every hit' },
   scythe: { label: 'Scythe', color: '#14A3A3', blurb: 'Lifesteal grows every hit' },
   bow: { label: 'Bow', color: '#F26B1D', blurb: '+1 arrow per volley every hit' },
+  musket: { label: 'Musket', color: '#9C5B2E', blurb: 'Aims, then fires one heavy shot. +1 damage and faster reload every hit' },
   unarmed: { label: 'Unarmed', color: '#2F6FDE', blurb: 'Faster every bounce, body slams for speed damage' },
 };
 
@@ -300,7 +301,7 @@ export class Bow extends Weapon {
       for (let i = 0; i < this.arrows; i++) {
         const a = this.angle + (i - (this.arrows - 1) / 2) * spread;
         const p = this.at(b, b.r + 18 * b.scale);
-        g.arrows.push({ x: p.x, y: p.y, vx: Math.cos(a) * 1050, vy: Math.sin(a) * 1050, owner: b, dmg: this.damage, dead: false });
+        g.arrows.push({ kind: 'arrow', x: p.x, y: p.y, vx: Math.cos(a) * 1050, vy: Math.sin(a) * 1050, owner: b, dmg: this.damage, dead: false });
       }
       g.sfx.shoot();
     }
@@ -332,6 +333,69 @@ export class Bow extends Weapon {
     ctx.stroke();
     if (this.reload < this.interval * 0.8) drawArrow(ctx, sx - pull + spriteSize(ARROW).w * P, 0, 0, b.color, P);
     drawOnAxis(ctx, BOW, b.color, x0, P);
+    ctx.restore();
+  }
+}
+
+export class Musket extends Weapon {
+  readonly kind = 'musket';
+  spin = 2.2;
+  melee = false;
+  damage = 3;
+  reloadTime = 2.4;
+  private reload = 1.0;
+  /** 1 right after firing, decays to 0; drives the kick-back animation. */
+  private recoil = 0;
+
+  private muzzle(b: Ball) {
+    return b.r + 82 * b.scale;
+  }
+
+  capsules(b: Ball): Capsule[] {
+    const u = b.scale;
+    return [{ a: this.at(b, b.r + 6 * u), b: this.at(b, this.muzzle(b)), r: 5 * u }];
+  }
+
+  update(g: Game, b: Ball, dt: number) {
+    super.update(g, b, dt);
+    this.recoil = Math.max(0, this.recoil - dt * 5);
+    this.reload -= dt;
+    if (this.reload <= 0 && this.linedUp(g, b)) {
+      this.reload = this.reloadTime;
+      this.recoil = 1;
+      const p = this.at(b, this.muzzle(b));
+      const c = Math.cos(this.angle);
+      const s = Math.sin(this.angle);
+      g.arrows.push({ kind: 'bullet', x: p.x, y: p.y, vx: c * 1700, vy: s * 1700, owner: b, dmg: this.damage, dead: false });
+      g.gunshot(b, p.x, p.y, this.angle);
+    }
+  }
+
+  /** Holds fire until the barrel points at an enemy, so shots look aimed. */
+  private linedUp(g: Game, b: Ball) {
+    return g.balls.some((e) => {
+      if (e === b || !e.alive) return false;
+      let d = Math.atan2(e.y - b.y, e.x - b.x) - this.angle;
+      d = Math.atan2(Math.sin(d), Math.cos(d));
+      return Math.abs(d) < Math.atan2(e.r * 0.7, Math.hypot(e.x - b.x, e.y - b.y));
+    });
+  }
+
+  onHit() {
+    this.damage += 1;
+    this.reloadTime = Math.max(1.0, this.reloadTime - 0.08);
+    return '+1 DMG';
+  }
+
+  stats() {
+    return `DMG ${fmt(this.damage)}  RELOAD ${this.reloadTime.toFixed(1)}s`;
+  }
+
+  draw(ctx: CanvasRenderingContext2D, b: Ball) {
+    const u = b.scale;
+    ctx.save();
+    this.local(ctx, b);
+    drawOnAxis(ctx, MUSKET, b.color, b.r - 16 * u - this.recoil * 10 * u, PX * u);
     ctx.restore();
   }
 }
@@ -407,6 +471,8 @@ export function createWeapon(kind: WeaponKind): Weapon {
       return new Scythe();
     case 'bow':
       return new Bow();
+    case 'musket':
+      return new Musket();
     case 'unarmed':
       return new Unarmed();
   }

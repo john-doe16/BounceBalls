@@ -185,6 +185,16 @@ export const BOW: Sprite = [
   'kk.....',
 ];
 
+export const MUSKET: Sprite = [
+  'kkkk',
+  'kbbbkk' + '.'.repeat(25) + 'kk',
+  'kbbbbbkk' + 'cc' + 'k'.repeat(23),
+  'kbBbbbbg' + 'CC' + 'm'.repeat(22) + 'k',
+  'kbbbbbkk' + 'cc' + 'k'.repeat(23),
+  'kbbbkk...k' + '.'.repeat(21) + 'kk',
+  'kkkk',
+];
+
 export const ARROW: Sprite = [
   'kk.......k..',
   'kcck.....kk.',

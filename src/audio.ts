@@ -77,6 +77,14 @@ export class Sfx {
     this.burst(t, 0.04 + 0.12 * k, 0.04, 'lowpass', 700 + 600 * k);
   }
 
+  gunshot() {
+    const t = this.ready('gunshot', 0.08);
+    if (t === null) return;
+    this.burst(t, 0.45, 0.03, 'highpass', 3000);
+    this.burst(t, 0.6, 0.4, 'lowpass', 2200);
+    this.tone('sine', 110, 32, t, 0.75, 0.32);
+  }
+
   bump() {
     const t = this.ready('bump', 0.05);
     if (t === null) return;

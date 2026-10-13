@@ -20,7 +20,9 @@ export interface GameConfig {
   ballScale: number;
 }
 
+/** A projectile in flight: a bow's arrow or a musket ball. */
 export interface Arrow {
+  kind: 'arrow' | 'bullet';
   x: number;
   y: number;
   vx: number;
@@ -375,15 +377,24 @@ export class Game {
             });
           if (blocked) {
             ar.dead = true;
-            this.fx.burst(ar.x, ar.y, '#FFB703', 6, 350, { spark: true, size: 3, life: 0.2, grav: 0 });
-            this.sfx.tink();
+            if (ar.kind === 'bullet') {
+              // Deflecting a bullet is a big deal — make it read like a parry.
+              this.fx.burst(ar.x, ar.y, '#FFB703', 14, 600, { spark: true, size: 4, life: 0.3, grav: 0 });
+              this.fx.ring(ar.x, ar.y, '#FFB703', 36, 4, 0.2);
+              this.fx.shake(5);
+              this.hitstop = Math.max(this.hitstop, 0.04);
+              this.sfx.clang();
+            } else {
+              this.fx.burst(ar.x, ar.y, '#FFB703', 6, 350, { spark: true, size: 3, life: 0.2, grav: 0 });
+              this.sfx.tink();
+            }
             break;
           }
         }
         if (Math.hypot(ar.x - b.x, ar.y - b.y) < b.r + 3) {
           ar.dead = true;
           const s = Math.hypot(ar.vx, ar.vy) || 1;
-          this.hit(ar.owner, b, ar.dmg, ar.x, ar.y, ar.vx / s, ar.vy / s, 0.5, false);
+          this.hit(ar.owner, b, ar.dmg, ar.x, ar.y, ar.vx / s, ar.vy / s, ar.kind === 'bullet' ? 1.4 : 0.5, false);
           break;
         }
       }
@@ -420,6 +431,20 @@ export class Game {
     if (label && att.alive) this.fx.text(att.x, att.y - att.r - 18, label, att.color, 20);
 
     if (tgt.hp <= 0) this.kill(tgt);
+  }
+
+  /** Muzzle flash, smoke and recoil for a gunshot fired from (x, y) along `angle`. */
+  gunshot(shooter: Ball, x: number, y: number, angle: number) {
+    const cos = Math.cos(angle);
+    const sin = Math.sin(angle);
+    shooter.vx -= cos * 380;
+    shooter.vy -= sin * 380;
+    this.fx.burst(x, y, '#FFB703', 10, 650, { angle, spread: 0.5, spark: true, size: 4, life: 0.15, grav: 0 });
+    this.fx.burst(x, y, '#ffffff', 5, 300, { angle, spread: 0.7, size: 7, life: 0.12, grav: 0 });
+    this.fx.burst(x + cos * 10, y + sin * 10, '#9aa0a6', 14, 160, { angle, spread: 1.2, size: 9, life: 1.0, grav: -70 });
+    this.fx.ring(x, y, '#FFB703', 30, 4, 0.15);
+    this.fx.shake(8);
+    this.sfx.gunshot();
   }
 
   heal(b: Ball, amount: number) {

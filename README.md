@@ -33,6 +33,7 @@ To regenerate the standalone file after making changes, run `npm run build:singl
 | Hammer  | Massive knockback; the head grows per hit |
 | Scythe  | Heals itself on hit; lifesteal grows |
 | Bow     | Fires volleys of arrows; +1 arrow per hit. Melee weapons can block arrows |
+| Musket  | Waits until it's lined up on an enemy, then fires one heavy shot with recoil and smoke; +1 damage and a faster reload per hit. Melee weapons can deflect bullets |
 | Unarmed | Speeds up on every wall bounce; body slams deal damage based on speed |
 
 - **Look:** flat, Shorts-ready 9:16 canvas with a scoreboard header and a light or dark theme. Nothing but the fight is drawn on the canvas, so it records cleanly.
