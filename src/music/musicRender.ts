@@ -1,5 +1,5 @@
 import { ARENA, VIEW } from '../game';
-import { FONT, THEMES, drawClock, drawPaused, type ThemeName } from '../render';
+import { FONT, THEMES, WORLD_TOP, drawClock, drawPaused, zoomAround, type ThemeName } from '../render';
 import { INK } from '../weapons';
 import { MUSIC_COLORS, type MusicGame, type Ring } from './musicGame';
 import { PLATFORM_THICK, platformSegment } from './sync';
@@ -9,6 +9,8 @@ export interface MusicRenderOpts {
   trails: boolean;
   /** Draw the dark outline around the ball. */
   outline: boolean;
+  /** Zoom around the middle of the play area; 1 is the normal framing. */
+  zoom: number;
   paused: boolean;
   /** Show the bounce count inside the ball (when it's big enough to read). */
   ballNumber: boolean;
@@ -31,9 +33,17 @@ export function renderMusic(ctx: CanvasRenderingContext2D, m: MusicGame, o: Musi
     ctx.beginPath();
     ctx.rect(0, FALL_TOP, VIEW.w, FALL_BOTTOM - FALL_TOP);
     ctx.clip();
+    zoomAround(ctx, VIEW.w / 2, (FALL_TOP + FALL_BOTTOM) / 2, o.zoom);
     ctx.translate(0, (FALL_TOP + FALL_BOTTOM) / 2 - m.camY);
-    drawPlatforms(ctx, m, t.text);
-  } else if (m.cfg.format === 'escape') {
+    drawPlatforms(ctx, m, t.text, o.zoom);
+  } else {
+    // Keep a zoomed-in ring from spilling over the title.
+    ctx.beginPath();
+    ctx.rect(-40, WORLD_TOP - 40, VIEW.w + 80, VIEW.h);
+    ctx.clip();
+    zoomAround(ctx, ARENA.cx, ARENA.cy, o.zoom);
+  }
+  if (m.cfg.format === 'escape') {
     for (const r of m.rings) if (!r.broken) drawGapRing(ctx, r);
   } else if (m.rings[0] && !m.rings[0].broken) {
     const ring = m.rings[0];
@@ -141,9 +151,10 @@ const FALL_BOTTOM = 1040;
  * Beat Sync platforms: short slanted bars, each where the ball meets it on a note. Upcoming ones
  * are drawn ahead so you can see where it lands; used ones flash, then fade away.
  */
-function drawPlatforms(ctx: CanvasRenderingContext2D, m: MusicGame, ink: string) {
-  const top = m.camY - (FALL_BOTTOM - FALL_TOP) / 2 - 60;
-  const bottom = m.camY + (FALL_BOTTOM - FALL_TOP) / 2 + 60;
+function drawPlatforms(ctx: CanvasRenderingContext2D, m: MusicGame, ink: string, zoom: number) {
+  const half = (FALL_BOTTOM - FALL_TOP) / 2 / zoom;
+  const top = m.camY - half - 60;
+  const bottom = m.camY + half + 60;
   const r = m.ball.r;
   ctx.save();
   ctx.lineCap = 'round';

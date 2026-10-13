@@ -18,6 +18,15 @@ export const THEMES: Record<ThemeName, Theme> = {
   dark: { bg: '#121212', arena: '#1B1B1B', text: '#F5F5F5', muted: '#7A7A7A', track: '#2C2C2C' },
 };
 
+/** Below the scoreboard; zoomed arenas are clipped to here. */
+export const WORLD_TOP = 345;
+
+export function zoomAround(ctx: CanvasRenderingContext2D, x: number, y: number, z: number) {
+  ctx.translate(x, y);
+  ctx.scale(z, z);
+  ctx.translate(-x, -y);
+}
+
 export const FONT = "'Barlow Condensed', 'Arial Narrow', sans-serif";
 
 export interface RenderOpts {
@@ -25,6 +34,8 @@ export interface RenderOpts {
   trails: boolean;
   /** Draw the dark outline around each ball. */
   outline: boolean;
+  /** Arena zoom around its center; 1 is the normal framing. */
+  zoom: number;
   paused: boolean;
   autoRematch: boolean;
 }
@@ -43,7 +54,12 @@ export function render(ctx: CanvasRenderingContext2D, g: Game, o: RenderOpts) {
 
   const shake = g.fx.shakeOffset();
   ctx.save();
+  // Keep a zoomed-in arena from spilling over the scoreboard.
+  ctx.beginPath();
+  ctx.rect(0, WORLD_TOP, VIEW.w, VIEW.h - WORLD_TOP);
+  ctx.clip();
   ctx.translate(shake.x, shake.y);
+  zoomAround(ctx, ARENA.cx, ARENA.cy, o.zoom);
   drawArena(ctx, g, t);
   drawWebs(ctx, g, t);
   if (o.trails) for (const b of g.balls) if (b.alive) drawTrail(ctx, b);

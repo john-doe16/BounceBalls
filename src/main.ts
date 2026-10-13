@@ -6,7 +6,7 @@ import '@fontsource/archivo/latin-500.css';
 import '@fontsource/archivo/latin-600.css';
 import './style.css';
 import { Sfx } from './audio';
-import { Game, VIEW, type ArenaShape } from './game';
+import { ARENA, Game, VIEW, type ArenaShape } from './game';
 import { pick } from './math';
 import { parseMidi } from './music/midi';
 import { MusicGame, type MusicFormat } from './music/musicGame';
@@ -24,6 +24,7 @@ interface Settings {
   theme: ThemeName;
   gravity: number;
   ballScale: number;
+  zoom: number;
   speed: number;
   sound: boolean;
   volume: number;
@@ -55,6 +56,7 @@ const DEFAULTS: Settings = {
   theme: initialTheme(),
   gravity: 700,
   ballScale: 1,
+  zoom: 1,
   speed: 1,
   sound: true,
   volume: 1,
@@ -148,12 +150,12 @@ function resize() {
 window.addEventListener('resize', resize);
 resize();
 
+/** Pointer position in arena coordinates, undoing the zoom. */
 function toWorld(e: PointerEvent) {
   const rect = canvas.getBoundingClientRect();
-  return {
-    x: ((e.clientX - rect.left) / rect.width) * VIEW.w,
-    y: ((e.clientY - rect.top) / rect.height) * VIEW.h,
-  };
+  const sx = ((e.clientX - rect.left) / rect.width) * VIEW.w;
+  const sy = ((e.clientY - rect.top) / rect.height) * VIEW.h;
+  return { x: ARENA.cx + (sx - ARENA.cx) / settings.zoom, y: ARENA.cy + (sy - ARENA.cy) / settings.zoom };
 }
 
 canvas.addEventListener('pointerdown', (e) => {
@@ -361,7 +363,7 @@ function syncFormat() {
   $('shrinkRow').hidden = settings.format !== 'ring';
 }
 
-function bindRange(id: 'gravity' | 'speed' | 'ballScale' | 'volume', format: (v: number) => string, onChange: (v: number) => void) {
+function bindRange(id: 'gravity' | 'speed' | 'ballScale' | 'volume' | 'zoom', format: (v: number) => string, onChange: (v: number) => void) {
   const input = $<HTMLInputElement>(id);
   const out = $<HTMLOutputElement>(`${id}Out`);
   input.value = String(settings[id]);
@@ -379,6 +381,7 @@ bindRange('gravity', (v) => String(v), (v) => {
   music.cfg.gravity = v;
 });
 bindRange('speed', (v) => `${v}x`, () => {});
+bindRange('zoom', (v) => `${v.toFixed(2)}x`, () => {});
 bindRange('volume', (v) => `${Math.round(v * 100)}%`, (v) => {
   sfx.volume = v;
   // Dragging the slider counts as a click, so it can also switch sound on.
@@ -440,11 +443,11 @@ function frame(now: number) {
   if (settings.mode === 'battle') {
     if (!paused) game.advance(realDt, settings.speed);
     if (settings.autoRematch && game.winner !== undefined && game.overTime > 4.5) restart();
-    render(ctx, game, { theme: settings.theme, trails: settings.trails, outline: settings.outline, paused, autoRematch: settings.autoRematch });
+    render(ctx, game, { theme: settings.theme, trails: settings.trails, outline: settings.outline, zoom: settings.zoom, paused, autoRematch: settings.autoRematch });
   } else {
     if (!paused) music.advance(realDt, settings.speed);
     if (settings.autoRestart && music.readyToRestart) restart();
-    renderMusic(ctx, music, { theme: settings.theme, trails: settings.trails, outline: settings.outline, paused, ballNumber: settings.ballNumber });
+    renderMusic(ctx, music, { theme: settings.theme, trails: settings.trails, outline: settings.outline, zoom: settings.zoom, paused, ballNumber: settings.ballNumber });
   }
   requestAnimationFrame(frame);
 }
