@@ -34,7 +34,7 @@ export function renderMusic(ctx: CanvasRenderingContext2D, m: MusicGame, o: Musi
     ctx.rect(0, FALL_TOP, VIEW.w, FALL_BOTTOM - FALL_TOP);
     ctx.clip();
     zoomAround(ctx, VIEW.w / 2, (FALL_TOP + FALL_BOTTOM) / 2, o.zoom);
-    ctx.translate(0, (FALL_TOP + FALL_BOTTOM) / 2 - m.camY);
+    ctx.translate(VIEW.w / 2 - m.camX, (FALL_TOP + FALL_BOTTOM) / 2 - m.camY);
     drawPlatforms(ctx, m, t.text, o.zoom);
   } else {
     // Keep a zoomed-in ring from spilling over the title.

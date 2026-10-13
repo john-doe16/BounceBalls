@@ -66,6 +66,7 @@ export class MusicGame {
   /** Beat Sync: the planned platform hits, how many have happened, and the camera height. */
   hits: Hit[] = [];
   hitIndex = 0;
+  camX: number = ARENA.cx;
   camY = 0;
   private syncGravity = 0;
   private start: Vec = { x: 0, y: 0 };
@@ -112,7 +113,8 @@ export class MusicGame {
       this.hits = planFall(this.events, this.start, this.syncGravity, this.ball.r);
       this.ball.x = this.start.x;
       this.ball.y = this.start.y;
-      this.camY = this.start.y + 200;
+      this.camX = this.start.x;
+      this.camY = this.start.y;
     }
   }
 
@@ -150,7 +152,7 @@ export class MusicGame {
     for (const r of this.rings) r.angle += r.speed * dt;
     if (this.cfg.format === 'sync') {
       this.stepSync();
-      this.followCamera(dt);
+      this.followCamera();
       return;
     }
 
@@ -224,9 +226,10 @@ export class MusicGame {
     b.vy = v.y + g * u;
   }
 
-  /** Smoothly keeps the ball a little above the middle of the view. */
-  private followCamera(dt: number) {
-    this.camY += (this.ball.y + 120 - this.camY) * Math.min(1, dt * 5);
+  /** Locks the view on the ball so it stays dead center (its path never jumps, only turns). */
+  private followCamera() {
+    this.camX = this.ball.x;
+    this.camY = this.ball.y;
   }
 
   private bounce(x: number, y: number, ring: Ring | undefined) {
