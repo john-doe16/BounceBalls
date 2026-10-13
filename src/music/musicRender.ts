@@ -22,14 +22,6 @@ export function renderMusic(ctx: CanvasRenderingContext2D, m: MusicGame, o: Musi
   ctx.save();
   ctx.translate(shake.x, shake.y);
   if (m.cfg.format === 'escape') {
-    // The outer wall the ball lands in once it's out.
-    ctx.strokeStyle = t.text;
-    ctx.lineWidth = 6;
-    ctx.beginPath();
-    ctx.arc(ARENA.cx, ARENA.cy, ARENA.half, 0, Math.PI * 2);
-    ctx.fillStyle = t.arena;
-    ctx.fill();
-    ctx.stroke();
     for (const r of m.rings) if (!r.broken) drawGapRing(ctx, r);
   } else {
     const ring = m.rings[0];

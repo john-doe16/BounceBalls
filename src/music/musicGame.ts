@@ -136,7 +136,9 @@ export class MusicGame {
 
     // The ball is always inside the innermost ring that's left; it bounces off that ring's inner edge.
     const ring = this.rings.find((r) => !r.broken);
-    const wall = ring ? ring.r - ring.thick / 2 : OUTER;
+    // Out of the last escape ring there's no wall: the ball just flies away.
+    if (!ring) return;
+    const wall = ring.r - ring.thick / 2;
 
     // Slipping into the gap breaks the ring at once — the next ring is right behind it.
     if (ring && ring.gapHalf > 0 && d + b.r > wall && this.inGap(ring, Math.atan2(dy, dx))) {
