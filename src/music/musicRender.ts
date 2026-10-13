@@ -7,6 +7,8 @@ export interface MusicRenderOpts {
   theme: ThemeName;
   trails: boolean;
   paused: boolean;
+  /** Show the bounce count inside the ball (when it's big enough to read). */
+  ballNumber: boolean;
 }
 
 export function renderMusic(ctx: CanvasRenderingContext2D, m: MusicGame, o: MusicRenderOpts) {
@@ -54,8 +56,8 @@ export function renderMusic(ctx: CanvasRenderingContext2D, m: MusicGame, o: Musi
   ctx.lineWidth = Math.min(6, 3 + b.r / 40);
   ctx.strokeStyle = INK;
   ctx.stroke();
-  if (m.cfg.format === 'grow' && b.r > 22) {
-    // The bounce count lives inside the growing ball.
+  if (o.ballNumber && b.r >= 14) {
+    // The bounce count lives inside the ball.
     ctx.save();
     ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';

@@ -14,6 +14,8 @@ export interface MusicConfig {
   shrink: boolean;
   /** The ball changes color on every bounce. */
   colorCycle: boolean;
+  /** Pop up the note's name where the ball bounces. */
+  showNotes: boolean;
 }
 
 export interface Ring {
@@ -181,7 +183,7 @@ export class MusicGame {
 
     this.fx.ring(x, y, this.ballColor, 40, 4, 0.35);
     this.fx.burst(x, y, this.ballColor, 8, 220, { size: 4, life: 0.4, grav: 0 });
-    if (note) this.fx.text(x - (x - ARENA.cx) * 0.12, y - (y - ARENA.cy) * 0.12, note, 'ink', 22);
+    if (note && this.cfg.showNotes) this.fx.text(x - (x - ARENA.cx) * 0.12, y - (y - ARENA.cy) * 0.12, note, 'ink', 22);
 
     if (this.cfg.format === 'grow' && !this.finished) {
       b.r += 2.3;

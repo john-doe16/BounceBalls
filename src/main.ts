@@ -32,6 +32,8 @@ interface Settings {
   format: MusicFormat;
   shrink: boolean;
   colorCycle: boolean;
+  showNotes: boolean;
+  ballNumber: boolean;
   autoRestart: boolean;
 }
 
@@ -59,6 +61,8 @@ const DEFAULTS: Settings = {
   format: 'ring',
   shrink: false,
   colorCycle: true,
+  showNotes: true,
+  ballNumber: true,
   autoRestart: false,
 };
 
@@ -110,7 +114,7 @@ function newGame() {
 
 function newMusic() {
   return new MusicGame(
-    { format: settings.format, song: currentSong(), gravity: settings.gravity, shrink: settings.shrink, colorCycle: settings.colorCycle },
+    { format: settings.format, song: currentSong(), gravity: settings.gravity, shrink: settings.shrink, colorCycle: settings.colorCycle, showNotes: settings.showNotes },
     sfx,
   );
 }
@@ -372,7 +376,7 @@ bindRange('speed', (v) => `${v}x`, () => {});
 // Ball size changes spawn spacing, so it starts a fresh round.
 bindRange('ballScale', (v) => `${v.toFixed(1)}x`, restart);
 
-type CheckId = 'sound' | 'trails' | 'autoRematch' | 'autoRestart' | 'shrink' | 'colorCycle';
+type CheckId = 'sound' | 'trails' | 'autoRematch' | 'autoRestart' | 'shrink' | 'colorCycle' | 'showNotes' | 'ballNumber';
 function bindCheck(id: CheckId, onChange: (v: boolean) => void = () => {}) {
   const input = $<HTMLInputElement>(id);
   input.checked = settings[id];
@@ -391,6 +395,8 @@ bindCheck('autoRematch');
 bindCheck('autoRestart');
 bindCheck('shrink', restart);
 bindCheck('colorCycle', (v) => (music.cfg.colorCycle = v));
+bindCheck('showNotes', (v) => (music.cfg.showNotes = v));
+bindCheck('ballNumber');
 
 $('fight').addEventListener('click', () => {
   sfx.unlock();
@@ -426,7 +432,7 @@ function frame(now: number) {
   } else {
     if (!paused) music.advance(realDt, settings.speed);
     if (settings.autoRestart && music.readyToRestart) restart();
-    renderMusic(ctx, music, { theme: settings.theme, trails: settings.trails, paused });
+    renderMusic(ctx, music, { theme: settings.theme, trails: settings.trails, paused, ballNumber: settings.ballNumber });
   }
   requestAnimationFrame(frame);
 }
