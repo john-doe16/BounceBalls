@@ -55,8 +55,8 @@ export class MusicGame {
   bounces = 0;
   time = 0;
   trail: Vec[] = [];
-  /** Set when the run reaches its ending (all rings broken, ball fills the ring). */
-  finished: { title: string; at: number } | null = null;
+  /** Set when the run ends: the last ring has shattered and the ball is flying away. */
+  finished: { at: number } | null = null;
   private acc = 0;
   private hitstop = 0;
   private lastNote = -1;
@@ -90,7 +90,7 @@ export class MusicGame {
       this.ball.r = (cfg.format === 'grow' ? 14 : 18) * cfg.ballScale;
       this.ball.x = ARENA.cx + rand(-60, 60);
       this.ball.y = ARENA.cy - 120;
-      this.rings.push({ r: OUTER, thick: 0, angle: 0, speed: 0, gapHalf: 0, color: '', broken: false, flash: 0 });
+      this.rings.push({ r: OUTER, thick: 0, angle: 0, speed: 0, gapHalf: 0, color: 'ink', broken: false, flash: 0 });
     }
   }
 
@@ -126,7 +126,6 @@ export class MusicGame {
     this.time += dt;
     const b = this.ball;
     for (const r of this.rings) r.angle += r.speed * dt;
-    if (this.finished && this.cfg.format === 'grow') return; // the full ball holds still
 
     b.vy += this.cfg.gravity * dt;
     b.x += b.vx * dt;
@@ -188,17 +187,13 @@ export class MusicGame {
     if (note && this.cfg.showNotes) this.fx.text(x - (x - ARENA.cx) * 0.12, y - (y - ARENA.cy) * 0.12, note, 'ink', 22);
 
     if (this.cfg.format === 'grow' && !this.finished) {
-      b.r += 2.3;
-      if (b.r >= OUTER - 8) {
-        b.r = OUTER - 8;
-        b.x = ARENA.cx;
-        b.y = ARENA.cy;
-        this.finish('FULL!');
-      }
+      b.r = Math.min(b.r + 2.7, OUTER - 8);
+      // Full: the ring shatters and the ball sails out.
+      if (b.r >= OUTER - 8 && ring) this.breakRing(ring);
     }
     if (this.cfg.format === 'ring' && this.cfg.shrink && ring && !this.finished) {
       ring.r = Math.max(b.r * 1.6, ring.r - 2);
-      if (ring.r <= b.r * 1.6) this.finish('SQUEEZED!');
+      if (ring.r <= b.r * 1.6) this.breakRing(ring);
     }
   }
 
@@ -217,7 +212,7 @@ export class MusicGame {
     this.fx.ring(ARENA.cx, ARENA.cy, ring.color, ring.r + 30, 6, 0.4);
     // Only the song plays — no extra effect sound over it.
     this.playNext();
-    if (this.ringsLeft === 0) this.finish('ESCAPED!');
+    if (this.ringsLeft === 0) this.finished = { at: this.time };
   }
 
   /** Plays the song's next chord (looping) and returns its top note's name. */
@@ -230,18 +225,6 @@ export class MusicGame {
     this.noteIndex++;
     this.sfx.chord(ev.notes, ev.dur, ev.vel);
     return noteName(Math.max(...ev.notes));
-  }
-
-  private finish(title: string) {
-    if (this.finished) return;
-    this.finished = { title, at: this.time };
-    // Escaping ends quietly: the ball just keeps flying out of frame.
-    if (this.cfg.format === 'escape') return;
-    this.fx.burst(this.ball.x, this.ball.y, this.ballColor, 60, 700, { size: 7, life: 1.1, grav: 300 });
-    this.fx.ring(ARENA.cx, ARENA.cy, this.ballColor, OUTER + 40, 10, 0.6);
-    this.fx.flash = 0.3;
-    this.fx.flashColor = this.ballColor;
-    this.fx.shake(14);
   }
 
   /** Seconds since the ending, or -1 while still running. */

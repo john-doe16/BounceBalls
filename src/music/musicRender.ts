@@ -1,5 +1,5 @@
 import { ARENA, VIEW } from '../game';
-import { FONT, THEMES, drawBand, drawClock, drawPaused, type ThemeName } from '../render';
+import { FONT, THEMES, drawClock, drawPaused, type ThemeName } from '../render';
 import { INK } from '../weapons';
 import type { MusicGame, Ring } from './musicGame';
 
@@ -27,7 +27,7 @@ export function renderMusic(ctx: CanvasRenderingContext2D, m: MusicGame, o: Musi
   ctx.translate(shake.x, shake.y);
   if (m.cfg.format === 'escape') {
     for (const r of m.rings) if (!r.broken) drawGapRing(ctx, r);
-  } else {
+  } else if (!m.rings[0].broken) {
     const ring = m.rings[0];
     ctx.beginPath();
     ctx.arc(ARENA.cx, ARENA.cy, ring.r, 0, Math.PI * 2);
@@ -39,7 +39,7 @@ export function renderMusic(ctx: CanvasRenderingContext2D, m: MusicGame, o: Musi
   }
 
   const b = m.ball;
-  if (o.trails && !m.finished) {
+  if (o.trails) {
     ctx.save();
     ctx.fillStyle = m.ballColor;
     m.trail.forEach((p, i) => {
@@ -86,9 +86,6 @@ export function renderMusic(ctx: CanvasRenderingContext2D, m: MusicGame, o: Musi
   }
 
   drawClock(ctx, m.finished ? m.finished.at : m.time, t);
-  if (m.finished && m.finishedFor > 0.4 && m.cfg.format !== 'escape') {
-    drawBand(ctx, m.ballColor, m.finished.title, `${m.bounces} BOUNCES  ·  ${m.finished.at.toFixed(1)}S`, m.finishedFor - 0.4);
-  }
   if (o.paused) drawPaused(ctx, t);
 }
 
