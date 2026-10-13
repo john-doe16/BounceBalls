@@ -12,9 +12,13 @@
       <aside id="panel">
         <header class="panel-head">
           <h1>Bounce Balls</h1>
+          <div class="seg" id="mode">
+            <button data-v="battle">Battle</button>
+            <button data-v="music">Music</button>
+          </div>
         </header>
 
-        <section>
+        <section data-mode="battle">
           <div class="section-head">
             <h2>Fighters</h2>
             <button id="random" class="link">Shuffle</button>
@@ -23,9 +27,29 @@
           <button id="add" class="ghost wide">Add fighter</button>
         </section>
 
+        <section data-mode="music">
+          <h2>Song</h2>
+          <select id="song" class="wide"></select>
+          <input type="file" id="midiFile" accept=".mid,.midi,audio/midi" hidden />
+          <button id="upload" class="ghost wide">Load a MIDI file</button>
+          <p id="songInfo" class="note"></p>
+        </section>
+
+        <section data-mode="music">
+          <h2>Format</h2>
+          <div class="seg seg-full" id="format">
+            <button data-v="ring">Ring</button>
+            <button data-v="escape">Escape</button>
+            <button data-v="grow">Grow</button>
+          </div>
+          <p id="formatInfo" class="note"></p>
+          <label class="field toggle" id="shrinkRow"><span>Shrink ring</span><input type="checkbox" id="shrink" /></label>
+          <label class="field toggle"><span>Color change on bounce</span><input type="checkbox" id="colorCycle" /></label>
+        </section>
+
         <section>
           <h2>Arena</h2>
-          <div class="field">
+          <div class="field" data-mode="battle">
             <span>Shape</span>
             <div class="seg" id="arena">
               <button data-v="square">Square</button>
@@ -44,7 +68,7 @@
             <input type="range" id="gravity" min="0" max="2000" step="50" />
             <output id="gravityOut"></output>
           </label>
-          <label class="field slider">
+          <label class="field slider" data-mode="battle">
             <span>Ball size</span>
             <input type="range" id="ballScale" min="0.5" max="2" step="0.1" />
             <output id="ballScaleOut"></output>
@@ -60,14 +84,16 @@
           <h2>Options</h2>
           <label class="field toggle"><span>Sound</span><input type="checkbox" id="sound" /></label>
           <label class="field toggle"><span>Trails</span><input type="checkbox" id="trails" /></label>
-          <label class="field toggle"><span>Auto rematch</span><input type="checkbox" id="autoRematch" /></label>
+          <label class="field toggle" data-mode="battle"><span>Auto rematch</span><input type="checkbox" id="autoRematch" /></label>
+          <label class="field toggle" data-mode="music"><span>Auto restart</span><input type="checkbox" id="autoRestart" /></label>
         </section>
 
         <section class="actions">
-          <button id="fight" class="primary">Rematch <kbd>R</kbd></button>
+          <button id="fight" class="primary">Restart <kbd>R</kbd></button>
           <button id="pause" class="ghost">Pause <kbd>Space</kbd></button>
         </section>
-        <p class="hint">Drag a ball to grab and fling it.</p>
+        <p class="hint" data-mode="battle">Drag a ball to grab and fling it.</p>
+        <p class="hint" data-mode="music">Every bounce plays the next note of the song. Click the arena once to turn on sound.</p>
       </aside>
     </main>
     <script type="module" src="/src/main.ts"></script>

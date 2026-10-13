@@ -43,6 +43,17 @@ To regenerate the standalone file after making changes, run `npm run build:singl
 - **Juice:** hitstop (freeze frames), screen shake, particles, damage numbers, shockwaves, slow-mo on K.O., and synthesized sound.
 - Up to 6 fighters in a free-for-all, with a square or circle arena.
 
+## Music mode
+
+Switch the panel to **Music**. Every bounce plays the next note (or chord) of a song, so the ball's rhythm becomes the song's rhythm.
+
+- **Songs:** Für Elise, Ode to Joy, Canon in D and Hall of the Mountain King are built in. **Load a MIDI file** plays any `.mid` you have; drums are skipped and notes that start together play as a chord.
+- **Formats:**
+  - **Ring:** one ball in one ring, looping forever. Turn on **Shrink ring** to have it close in until the ball is squeezed.
+  - **Escape:** break out through the gaps of 10 spinning rings; each one shatters on the way out.
+  - **Grow:** the ball grows on every bounce until it fills the ring.
+- Battle and music never mix: wall bounces in battles are plain thuds.
+
 ## Controls
 
 - **Drag a ball** to grab and fling it
@@ -57,6 +68,7 @@ To regenerate the standalone file after making changes, run `npm run build:singl
 - `src/render.ts`: canvas rendering (720×1280 vertical layout, Shorts-ready)
 - `src/fx.ts`: particles, floating text, rings, shake, flash
 - `src/audio.ts`: Web Audio sound synthesis
+- `src/music/`: music mode (`songs.ts` scores, `midi.ts` MIDI parser, `musicGame.ts` simulation, `musicRender.ts` drawing)
 - `src/main.ts`: UI panel, input, and the game loop
 
 ### Adding a weapon

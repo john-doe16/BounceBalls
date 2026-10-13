@@ -120,6 +120,76 @@ export class Sfx {
     this.burst(t, 0.35, 0.12, 'bandpass', 1400, 1.2);
   }
 
+  private musicBus: GainNode | null = null;
+
+  /** Music-mode bus: dry signal plus a short generated reverb tail. */
+  private bus(): GainNode {
+    if (this.musicBus) return this.musicBus;
+    const ctx = this.ctx!;
+    const bus = ctx.createGain();
+    bus.gain.value = 0.9;
+    const len = Math.floor(ctx.sampleRate * 1.8);
+    const impulse = ctx.createBuffer(2, len, ctx.sampleRate);
+    for (let c = 0; c < 2; c++) {
+      const data = impulse.getChannelData(c);
+      for (let i = 0; i < len; i++) data[i] = (Math.random() * 2 - 1) * Math.pow(1 - i / len, 3);
+    }
+    const verb = ctx.createConvolver();
+    verb.buffer = impulse;
+    const wet = ctx.createGain();
+    wet.gain.value = 0.3;
+    bus.connect(this.master);
+    bus.connect(verb).connect(wet).connect(this.master);
+    this.musicBus = bus;
+    return bus;
+  }
+
+  /** A soft piano-like voice. `notes` are MIDI numbers played together as a chord. */
+  chord(notes: number[], dur: number, vel = 0.8) {
+    if (!this.enabled || !this.ctx || this.ctx.state !== 'running') return;
+    const ctx = this.ctx;
+    const out = this.bus();
+    const t = ctx.currentTime;
+    const ring = Math.min(Math.max(dur, 0.25), 1.6);
+    const peak = (0.2 * vel) / Math.sqrt(notes.length);
+    for (const n of notes) {
+      const f = 440 * Math.pow(2, (n - 69) / 12);
+      const g = ctx.createGain();
+      g.gain.setValueAtTime(0.0001, t);
+      g.gain.exponentialRampToValueAtTime(peak, t + 0.006);
+      g.gain.exponentialRampToValueAtTime(peak * 0.35, t + 0.25);
+      g.gain.exponentialRampToValueAtTime(0.0001, t + 0.25 + ring);
+      const lp = ctx.createBiquadFilter();
+      lp.type = 'lowpass';
+      lp.frequency.setValueAtTime(Math.min(9000, f * 8), t);
+      lp.frequency.exponentialRampToValueAtTime(Math.min(4000, f * 3), t + 0.3);
+      lp.connect(g).connect(out);
+      const partials: [OscillatorType, number, number][] = [
+        ['triangle', 1, 1],
+        ['sine', 2, 0.25],
+        ['sine', 1.003, 0.4],
+      ];
+      for (const [type, mult, level] of partials) {
+        const o = ctx.createOscillator();
+        o.type = type;
+        o.frequency.value = f * mult;
+        const lg = ctx.createGain();
+        lg.gain.value = level;
+        o.connect(lg).connect(lp);
+        o.start(t);
+        o.stop(t + 0.3 + ring);
+      }
+    }
+  }
+
+  /** Glassy shatter for a ring breaking in Escape mode. */
+  shatter() {
+    const t = this.ready('shatter', 0.05);
+    if (t === null) return;
+    this.burst(t, 0.3, 0.25, 'highpass', 4000);
+    for (const f of [2600, 3500, 4700]) this.tone('triangle', f * (0.95 + Math.random() * 0.1), f, t, 0.04, 0.3);
+  }
+
   bump() {
     const t = this.ready('bump', 0.05);
     if (t === null) return;

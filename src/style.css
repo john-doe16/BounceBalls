@@ -325,3 +325,40 @@ input[type='range'] {
     transition: none;
   }
 }
+
+/* ---------- mode switch & music ---------- */
+
+[hidden] {
+  display: none !important;
+}
+
+.panel-head {
+  display: grid;
+  gap: 12px;
+}
+
+select.wide {
+  width: 100%;
+}
+
+#upload {
+  margin-top: 8px;
+}
+
+.note {
+  margin: 8px 0 0;
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.note:empty {
+  display: none;
+}
+
+.note.error {
+  color: #d6336c;
+}
+
+#format + .note {
+  margin-bottom: 8px;
+}

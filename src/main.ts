@@ -8,10 +8,17 @@ import './style.css';
 import { Sfx } from './audio';
 import { Game, VIEW, type ArenaShape } from './game';
 import { pick } from './math';
+import { parseMidi } from './music/midi';
+import { MusicGame, type MusicFormat } from './music/musicGame';
+import { renderMusic } from './music/musicRender';
+import { SONGS, type Song } from './music/songs';
 import { FONT, render, type ThemeName } from './render';
 import { WEAPON_INFO, WEAPON_KINDS, type WeaponKind } from './weapons';
 
+type Mode = 'battle' | 'music';
+
 interface Settings {
+  mode: Mode;
   fighters: WeaponKind[];
   arena: ArenaShape;
   theme: ThemeName;
@@ -21,6 +28,11 @@ interface Settings {
   sound: boolean;
   trails: boolean;
   autoRematch: boolean;
+  songId: string;
+  format: MusicFormat;
+  shrink: boolean;
+  colorCycle: boolean;
+  autoRestart: boolean;
 }
 
 const MAX_FIGHTERS = 6;
@@ -33,6 +45,7 @@ function initialTheme(): ThemeName {
 }
 
 const DEFAULTS: Settings = {
+  mode: 'battle',
   fighters: ['sword', 'dagger'],
   arena: 'square',
   theme: initialTheme(),
@@ -42,6 +55,17 @@ const DEFAULTS: Settings = {
   sound: true,
   trails: true,
   autoRematch: false,
+  songId: SONGS[0].id,
+  format: 'ring',
+  shrink: false,
+  colorCycle: true,
+  autoRestart: false,
+};
+
+const FORMAT_INFO: Record<MusicFormat, string> = {
+  ring: 'One ball in one ring. Every bounce plays the next note.',
+  escape: 'Break out through the gaps in 10 spinning rings. Each ring shatters on the way out.',
+  grow: 'The ball grows on every bounce until it fills the ring.',
 };
 
 function loadSettings(): Settings {
@@ -51,6 +75,8 @@ function loadSettings(): Settings {
     const s = { ...DEFAULTS, ...JSON.parse(raw) } as Settings;
     s.fighters = s.fighters.filter((k) => k in WEAPON_INFO).slice(0, MAX_FIGHTERS);
     if (s.fighters.length < 2) s.fighters = [...DEFAULTS.fighters];
+    // Uploaded songs only live for the session.
+    if (!SONGS.some((song) => song.id === s.songId)) s.songId = DEFAULTS.songId;
     return s;
   } catch {
     return { ...DEFAULTS };
@@ -68,16 +94,30 @@ function saveSettings() {
 const settings = loadSettings();
 const sfx = new Sfx();
 sfx.enabled = settings.sound;
+/** MIDI files loaded this session. */
+const uploaded: Song[] = [];
+
+const allSongs = () => [...SONGS, ...uploaded];
+const currentSong = () => allSongs().find((s) => s.id === settings.songId) ?? SONGS[0];
 
 let game = newGame();
+let music = newMusic();
 let paused = false;
 
 function newGame() {
   return new Game({ fighters: [...settings.fighters], arena: settings.arena, gravity: settings.gravity, ballScale: settings.ballScale }, sfx);
 }
 
+function newMusic() {
+  return new MusicGame(
+    { format: settings.format, song: currentSong(), gravity: settings.gravity, shrink: settings.shrink, colorCycle: settings.colorCycle },
+    sfx,
+  );
+}
+
 function restart() {
-  game = newGame();
+  if (settings.mode === 'battle') game = newGame();
+  else music = newMusic();
   paused = false;
   syncPause();
 }
@@ -108,6 +148,10 @@ function toWorld(e: PointerEvent) {
 
 canvas.addEventListener('pointerdown', (e) => {
   sfx.unlock();
+  if (settings.mode === 'music') {
+    if (music.finished && music.finishedFor > 0.6) restart();
+    return;
+  }
   const p = toWorld(e);
   if (game.winner !== undefined && game.overTime > 0.6) {
     restart();
@@ -153,6 +197,11 @@ const pauseBtn = $<HTMLButtonElement>('pause');
 
 function syncPause() {
   pauseBtn.innerHTML = `${paused ? 'Resume' : 'Pause'} <kbd>Space</kbd>`;
+}
+
+function syncMode() {
+  for (const el of document.querySelectorAll<HTMLElement>('[data-mode]')) el.hidden = el.dataset.mode !== settings.mode;
+  $('fight').innerHTML = `${settings.mode === 'battle' ? 'Rematch' : 'Restart'} <kbd>R</kbd>`;
 }
 
 function renderFighters() {
@@ -216,7 +265,57 @@ $('random').addEventListener('click', () => {
   applyFighters();
 });
 
-function bindSegmented<K extends 'arena' | 'theme'>(id: K, onChange: () => void) {
+// songs
+
+const songSelect = $<HTMLSelectElement>('song');
+const songInfo = $('songInfo');
+
+function renderSongs() {
+  songSelect.innerHTML = '';
+  for (const s of allSongs()) {
+    const opt = document.createElement('option');
+    opt.value = s.id;
+    opt.textContent = s.id.startsWith('upload:') ? `${s.name} (your file)` : s.name;
+    opt.selected = s.id === settings.songId;
+    songSelect.append(opt);
+  }
+}
+
+function showSongInfo(text: string, error = false) {
+  songInfo.textContent = text;
+  songInfo.classList.toggle('error', error);
+}
+
+songSelect.addEventListener('change', () => {
+  settings.songId = songSelect.value;
+  saveSettings();
+  showSongInfo(`${currentSong().events.length} notes`);
+  restart();
+});
+
+const midiInput = $<HTMLInputElement>('midiFile');
+$('upload').addEventListener('click', () => midiInput.click());
+midiInput.addEventListener('change', async () => {
+  const file = midiInput.files?.[0];
+  midiInput.value = '';
+  if (!file) return;
+  try {
+    const song = parseMidi(await file.arrayBuffer(), file.name);
+    const existing = uploaded.findIndex((s) => s.id === song.id);
+    if (existing >= 0) uploaded.splice(existing, 1, song);
+    else uploaded.push(song);
+    settings.songId = song.id;
+    renderSongs();
+    showSongInfo(`Loaded "${song.name}": ${song.events.length} notes. Files you load last until you close the page.`);
+    restart();
+  } catch (err) {
+    showSongInfo(err instanceof Error ? err.message : "Couldn't read that file.", true);
+  }
+});
+
+// segmented controls
+
+function bindSegmented<K extends 'arena' | 'theme' | 'mode' | 'format'>(id: K, onChange: () => void) {
   const buttons = [...$(id).querySelectorAll<HTMLButtonElement>('button')];
   const sync = () => {
     for (const b of buttons) b.classList.toggle('on', b.dataset.v === settings[id]);
@@ -233,11 +332,24 @@ function bindSegmented<K extends 'arena' | 'theme'>(id: K, onChange: () => void)
 }
 bindSegmented('arena', restart);
 bindSegmented('theme', syncTheme);
+bindSegmented('mode', () => {
+  syncMode();
+  restart();
+});
+bindSegmented('format', () => {
+  syncFormat();
+  restart();
+});
 
 function syncTheme() {
   document.documentElement.dataset.theme = settings.theme;
 }
 syncTheme();
+
+function syncFormat() {
+  $('formatInfo').textContent = FORMAT_INFO[settings.format];
+  $('shrinkRow').hidden = settings.format !== 'ring';
+}
 
 function bindRange(id: 'gravity' | 'speed' | 'ballScale', format: (v: number) => string, onChange: (v: number) => void) {
   const input = $<HTMLInputElement>(id);
@@ -252,12 +364,16 @@ function bindRange(id: 'gravity' | 'speed' | 'ballScale', format: (v: number) =>
     saveSettings();
   });
 }
-bindRange('gravity', (v) => String(v), (v) => (game.cfg.gravity = v));
+bindRange('gravity', (v) => String(v), (v) => {
+  game.cfg.gravity = v;
+  music.cfg.gravity = v;
+});
 bindRange('speed', (v) => `${v}x`, () => {});
 // Ball size changes spawn spacing, so it starts a fresh round.
 bindRange('ballScale', (v) => `${v.toFixed(1)}x`, restart);
 
-function bindCheck(id: 'sound' | 'trails' | 'autoRematch', onChange: (v: boolean) => void = () => {}) {
+type CheckId = 'sound' | 'trails' | 'autoRematch' | 'autoRestart' | 'shrink' | 'colorCycle';
+function bindCheck(id: CheckId, onChange: (v: boolean) => void = () => {}) {
   const input = $<HTMLInputElement>(id);
   input.checked = settings[id];
   input.addEventListener('change', () => {
@@ -272,6 +388,9 @@ bindCheck('sound', (v) => {
 });
 bindCheck('trails');
 bindCheck('autoRematch');
+bindCheck('autoRestart');
+bindCheck('shrink', restart);
+bindCheck('colorCycle', (v) => (music.cfg.colorCycle = v));
 
 $('fight').addEventListener('click', () => {
   sfx.unlock();
@@ -283,6 +402,10 @@ pauseBtn.addEventListener('click', () => {
 });
 
 renderFighters();
+renderSongs();
+showSongInfo(`${currentSong().events.length} notes`);
+syncFormat();
+syncMode();
 syncPause();
 
 // Canvas text only uses a web font once it's loaded, so request the weights up front.
@@ -294,11 +417,17 @@ let last = performance.now();
 function frame(now: number) {
   const realDt = Math.min((now - last) / 1000, 1 / 20);
   last = now;
-  if (!paused) game.advance(realDt, settings.speed);
-  if (settings.autoRematch && game.winner !== undefined && game.overTime > 4.5) restart();
-
   ctx.setTransform(scale, 0, 0, scale, 0, 0);
-  render(ctx, game, { theme: settings.theme, trails: settings.trails, paused, autoRematch: settings.autoRematch });
+
+  if (settings.mode === 'battle') {
+    if (!paused) game.advance(realDt, settings.speed);
+    if (settings.autoRematch && game.winner !== undefined && game.overTime > 4.5) restart();
+    render(ctx, game, { theme: settings.theme, trails: settings.trails, paused, autoRematch: settings.autoRematch });
+  } else {
+    if (!paused) music.advance(realDt, settings.speed);
+    if (settings.autoRestart && music.readyToRestart) restart();
+    renderMusic(ctx, music, { theme: settings.theme, trails: settings.trails, paused });
+  }
   requestAnimationFrame(frame);
 }
 requestAnimationFrame(frame);

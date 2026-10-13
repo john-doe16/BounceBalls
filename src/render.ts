@@ -5,7 +5,7 @@ import { INK, drawArrow, drawBombSprite } from './weapons';
 
 export type ThemeName = 'light' | 'dark';
 
-interface Theme {
+export interface Theme {
   bg: string;
   arena: string;
   text: string;
@@ -13,7 +13,7 @@ interface Theme {
   track: string;
 }
 
-const THEMES: Record<ThemeName, Theme> = {
+export const THEMES: Record<ThemeName, Theme> = {
   light: { bg: '#ECEEF1', arena: '#FFFFFF', text: '#111111', muted: '#7A818A', track: '#DADEE4' },
   dark: { bg: '#121212', arena: '#1B1B1B', text: '#F5F5F5', muted: '#7A7A7A', track: '#2C2C2C' },
 };
@@ -356,7 +356,12 @@ function drawGrab(ctx: CanvasRenderingContext2D, g: Game, t: Theme) {
 // ---------- overlays ----------
 
 function drawTimer(ctx: CanvasRenderingContext2D, g: Game, t: Theme) {
-  const s = Math.floor(g.time);
+  drawClock(ctx, g.time, t);
+}
+
+/** m:ss under the arena. */
+export function drawClock(ctx: CanvasRenderingContext2D, time: number, t: Theme) {
+  const s = Math.floor(time);
   ctx.save();
   ctx.textAlign = 'center';
   ctx.textBaseline = 'middle';
@@ -372,6 +377,11 @@ function drawWinner(ctx: CanvasRenderingContext2D, g: Game, auto: boolean) {
   const color = g.winner?.color ?? '#111111';
   const title = g.winner ? `${g.winner.name} WINS` : 'DRAW';
   const sub = auto ? `NEXT ROUND IN ${Math.max(0, Math.ceil(4.5 - g.overTime))}` : 'CLICK OR PRESS R FOR A REMATCH';
+  drawBand(ctx, color, title, sub, age);
+}
+
+/** The end-of-round card: a band in `color` that slides open across the arena. */
+export function drawBand(ctx: CanvasRenderingContext2D, color: string, title: string, sub: string, age: number) {
   const ink = luminance(color) > 0.6 ? '#111111' : '#ffffff';
 
   const grow = easeOut(Math.min(1, age / 0.25));
@@ -399,7 +409,7 @@ function drawWinner(ctx: CanvasRenderingContext2D, g: Game, auto: boolean) {
   ctx.restore();
 }
 
-function drawPaused(ctx: CanvasRenderingContext2D, t: Theme) {
+export function drawPaused(ctx: CanvasRenderingContext2D, t: Theme) {
   ctx.save();
   ctx.font = `800 36px ${FONT}`;
   ctx.textAlign = 'center';
