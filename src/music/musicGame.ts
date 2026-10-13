@@ -215,7 +215,7 @@ export class MusicGame {
     this.fx.ring(ARENA.cx, ARENA.cy, ring.color, ring.r + 30, 6, 0.4);
     this.fx.shake(6);
     this.hitstop = 0.04;
-    this.sfx.shatter();
+    // Only the song plays — no extra effect sound over it.
     this.playNext();
     if (this.ringsLeft === 0) this.finish('ESCAPED!');
   }
@@ -240,7 +240,6 @@ export class MusicGame {
     this.fx.flash = 0.3;
     this.fx.flashColor = this.ballColor;
     this.fx.shake(14);
-    this.sfx.win();
   }
 
   /** Seconds since the ending, or -1 while still running. */

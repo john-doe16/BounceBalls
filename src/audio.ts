@@ -182,14 +182,6 @@ export class Sfx {
     }
   }
 
-  /** Glassy shatter for a ring breaking in Escape mode. */
-  shatter() {
-    const t = this.ready('shatter', 0.05);
-    if (t === null) return;
-    this.burst(t, 0.3, 0.25, 'highpass', 4000);
-    for (const f of [2600, 3500, 4700]) this.tone('triangle', f * (0.95 + Math.random() * 0.1), f, t, 0.04, 0.3);
-  }
-
   bump() {
     const t = this.ready('bump', 0.05);
     if (t === null) return;
