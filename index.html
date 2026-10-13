@@ -1,0 +1,53 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Bounce Balls</title>
+  </head>
+  <body>
+    <div id="app">
+      <canvas id="view"></canvas>
+      <aside id="panel">
+        <h1>BOUNCE<span>BALLS</span></h1>
+
+        <section>
+          <h2>Fighters</h2>
+          <div id="fighters"></div>
+          <div class="row">
+            <button id="add">+ Add fighter</button>
+            <button id="random">🎲 Random</button>
+          </div>
+        </section>
+
+        <section>
+          <h2>Arena</h2>
+          <div class="seg" id="arena">
+            <button data-v="square">Square</button>
+            <button data-v="circle">Circle</button>
+          </div>
+          <label class="slider">Gravity <output id="gravityOut"></output>
+            <input type="range" id="gravity" min="0" max="2000" step="50" />
+          </label>
+          <label class="slider">Sim speed <output id="speedOut"></output>
+            <input type="range" id="speed" min="0.25" max="3" step="0.25" />
+          </label>
+        </section>
+
+        <section>
+          <h2>Options</h2>
+          <label class="check"><input type="checkbox" id="sound" /> Sound</label>
+          <label class="check"><input type="checkbox" id="trails" /> Trails</label>
+          <label class="check"><input type="checkbox" id="autoRematch" /> Auto rematch</label>
+        </section>
+
+        <div class="row">
+          <button id="fight" class="primary">⚔ Rematch (R)</button>
+          <button id="pause">Pause (Space)</button>
+        </div>
+        <p class="hint">Grab a ball and fling it. When two weapons clash they parry and both reverse spin.</p>
+      </aside>
+    </div>
+    <script type="module" src="/src/main.ts"></script>
+  </body>
+</html>

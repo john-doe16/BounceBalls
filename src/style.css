@@ -1,0 +1,194 @@
+:root {
+  --bg: #07080f;
+  --panel: #12142a;
+  --line: #262a4a;
+  --text: #e6e8ff;
+  --muted: #8a8fb0;
+  --accent: #ff4d5e;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--text);
+  font-family: system-ui, -apple-system, 'Segoe UI', sans-serif;
+}
+
+#app {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 16px;
+  justify-content: center;
+  align-items: flex-start;
+  padding: 12px;
+  min-height: 100dvh;
+}
+
+#view {
+  display: block;
+  aspect-ratio: 9 / 16;
+  height: min(calc(100dvh - 24px), calc((100vw - 24px) * 16 / 9));
+  border-radius: 16px;
+  touch-action: none;
+  cursor: grab;
+  box-shadow: 0 0 0 1px var(--line), 0 20px 60px rgba(0, 0, 0, 0.6);
+}
+
+#view:active {
+  cursor: grabbing;
+}
+
+#panel {
+  width: 300px;
+  max-width: 100%;
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: 16px;
+  padding: 18px;
+}
+
+h1 {
+  margin: 0 0 14px;
+  font-size: 26px;
+  font-weight: 900;
+  letter-spacing: 1px;
+}
+
+h1 span {
+  color: var(--accent);
+}
+
+h2 {
+  margin: 0 0 8px;
+  font-size: 12px;
+  text-transform: uppercase;
+  letter-spacing: 1.5px;
+  color: var(--muted);
+}
+
+section {
+  border-top: 1px solid var(--line);
+  padding: 14px 0;
+}
+
+button,
+select {
+  font: inherit;
+  color: var(--text);
+  background: #1c1f3a;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  padding: 8px 10px;
+  cursor: pointer;
+}
+
+button:hover,
+select:hover {
+  border-color: #4a4f80;
+}
+
+button.primary {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: #fff;
+  font-weight: 800;
+}
+
+.row {
+  display: flex;
+  gap: 8px;
+  margin-top: 8px;
+}
+
+.row > button {
+  flex: 1;
+}
+
+.fighter {
+  display: grid;
+  grid-template-columns: 14px 1fr auto;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 8px;
+}
+
+.fighter .swatch {
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+}
+
+.fighter small {
+  grid-column: 2 / 4;
+  color: var(--muted);
+  margin-top: -4px;
+}
+
+.fighter button {
+  padding: 6px 10px;
+}
+
+.seg {
+  display: flex;
+  gap: 0;
+  margin-bottom: 12px;
+}
+
+.seg button {
+  flex: 1;
+  border-radius: 0;
+}
+
+.seg button:first-child {
+  border-radius: 10px 0 0 10px;
+}
+
+.seg button:last-child {
+  border-radius: 0 10px 10px 0;
+}
+
+.seg button.on {
+  background: #343a6e;
+  border-color: #5b62a8;
+}
+
+label.slider {
+  display: block;
+  margin-bottom: 10px;
+  font-size: 14px;
+}
+
+label.slider output {
+  float: right;
+  color: var(--muted);
+}
+
+label.slider input {
+  width: 100%;
+  accent-color: var(--accent);
+}
+
+label.check {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 6px;
+  font-size: 14px;
+  cursor: pointer;
+}
+
+label.check input {
+  accent-color: var(--accent);
+}
+
+.hint {
+  color: var(--muted);
+  font-size: 13px;
+  line-height: 1.4;
+  margin: 14px 0 0;
+}
