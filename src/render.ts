@@ -1,7 +1,7 @@
 import type { Ball } from './ball';
-import { ARENA, VIEW, type Game } from './game';
+import { ARENA, VIEW, WEB_LIFE, type Game, type Team } from './game';
 import { PX } from './pixel';
-import { INK, drawArrow } from './weapons';
+import { INK, drawArrow, drawBombSprite } from './weapons';
 
 export type ThemeName = 'light' | 'dark';
 
@@ -35,18 +35,21 @@ export function render(ctx: CanvasRenderingContext2D, g: Game, o: RenderOpts) {
   ctx.fillStyle = t.bg;
   ctx.fillRect(0, 0, VIEW.w, VIEW.h);
 
-  if (g.balls.length === 2) drawVersus(ctx, g, t);
-  else drawStandings(ctx, g, t);
+  const views = g.teams.map(teamView);
+  if (views.length === 2) drawVersus(ctx, views, t);
+  else drawStandings(ctx, g, views, t);
 
   const shake = g.fx.shakeOffset();
   ctx.save();
   ctx.translate(shake.x, shake.y);
   drawArena(ctx, g, t);
+  drawWebs(ctx, g, t);
   if (o.trails) for (const b of g.balls) if (b.alive) drawTrail(ctx, b);
   for (const a of g.arrows) {
     if (a.kind === 'bullet') drawBullet(ctx, a.x, a.y, a.vx, a.vy, PX * a.owner.scale);
     else drawArrow(ctx, a.x, a.y, Math.atan2(a.vy, a.vx), a.owner.color, PX * a.owner.scale);
   }
+  for (const bomb of g.bombs) drawBomb(ctx, bomb);
   for (const b of g.balls) if (b.alive) drawBody(ctx, b);
   for (const b of g.balls) if (b.alive) b.weapon.draw(ctx, b);
   for (const b of g.balls) if (b.alive) drawHpLabel(ctx, b);
@@ -69,9 +72,37 @@ export function render(ctx: CanvasRenderingContext2D, g: Game, o: RenderOpts) {
 
 // ---------- header ----------
 
+/** What the scoreboard shows for one fighter: its pieces' HP summed together. */
+interface TeamView {
+  name: string;
+  color: string;
+  alive: boolean;
+  hp: number;
+  hpLag: number;
+  maxHp: number;
+  healing: boolean;
+  stats: string;
+}
+
+function teamView(team: Team): TeamView {
+  const live = team.members.filter((b) => b.alive);
+  const lead = live[0] ?? team.members[0];
+  const sum = (f: (b: Ball) => number) => team.members.reduce((n, b) => n + f(b), 0);
+  return {
+    name: team.name,
+    color: team.color,
+    alive: live.length > 0,
+    hp: Math.min(team.maxHp, sum((b) => (b.alive ? b.hp : 0))),
+    hpLag: Math.min(team.maxHp, sum((b) => Math.max(0, b.hpLag))),
+    maxHp: team.maxHp,
+    healing: live.some((b) => b.healGlow > 0),
+    stats: lead.weapon.stats(lead),
+  };
+}
+
 /** 1v1 scoreboard: names and HP facing each other, bars draining toward the outside edges. */
-function drawVersus(ctx: CanvasRenderingContext2D, g: Game, t: Theme) {
-  const [a, b] = g.balls;
+function drawVersus(ctx: CanvasRenderingContext2D, views: TeamView[], t: Theme) {
+  const [a, b] = views;
   const L = 40;
   const R = VIEW.w - 40;
   const mid = VIEW.w / 2;
@@ -90,7 +121,7 @@ function drawVersus(ctx: CanvasRenderingContext2D, g: Game, t: Theme) {
     ctx.fillText(ball.name, outer, 210);
     ctx.fillStyle = t.muted;
     ctx.font = `600 24px ${FONT}`;
-    ctx.fillText(ball.weapon.stats(ball), outer, 244);
+    ctx.fillText(ball.stats, outer, 244);
 
     ctx.textAlign = side < 0 ? 'right' : 'left';
     ctx.fillStyle = t.text;
@@ -110,8 +141,8 @@ function drawVersus(ctx: CanvasRenderingContext2D, g: Game, t: Theme) {
 }
 
 /** 3+ fighters: one row each — name, stat, bar, HP. */
-function drawStandings(ctx: CanvasRenderingContext2D, g: Game, t: Theme) {
-  const n = g.balls.length;
+function drawStandings(ctx: CanvasRenderingContext2D, g: Game, views: TeamView[], t: Theme) {
+  const n = views.length;
   const top = 112;
   const rowH = Math.min(58, 228 / n);
   const k = rowH / 58;
@@ -120,9 +151,9 @@ function drawStandings(ctx: CanvasRenderingContext2D, g: Game, t: Theme) {
   ctx.textAlign = 'center';
   ctx.fillStyle = t.muted;
   ctx.font = `700 24px ${FONT}`;
-  ctx.fillText(`FREE FOR ALL  ·  ${g.alive.length} LEFT`, VIEW.w / 2, 82);
+  ctx.fillText(`FREE FOR ALL  ·  ${g.teams.filter((tm) => tm.alive).length} LEFT`, VIEW.w / 2, 82);
 
-  g.balls.forEach((b, i) => {
+  views.forEach((b, i) => {
     const y = top + i * rowH + rowH / 2;
     ctx.globalAlpha = b.alive ? 1 : 0.35;
     ctx.fillStyle = b.color;
@@ -137,7 +168,7 @@ function drawStandings(ctx: CanvasRenderingContext2D, g: Game, t: Theme) {
     const nameEnd = 74 + ctx.measureText(b.name).width + 12;
 
     const barX = 360;
-    const stats = b.weapon.stats(b);
+    const stats = b.stats;
     ctx.font = `600 ${Math.round(22 * k)}px ${FONT}`;
     const fit = Math.min(1, (barX - 16 - nameEnd) / ctx.measureText(stats).width);
     ctx.font = `600 ${Math.max(10, Math.floor(22 * k * fit))}px ${FONT}`;
@@ -154,7 +185,7 @@ function drawStandings(ctx: CanvasRenderingContext2D, g: Game, t: Theme) {
   ctx.restore();
 }
 
-function drawBar(ctx: CanvasRenderingContext2D, t: Theme, b: Ball, x: number, y: number, w: number, h: number, fromRight: boolean) {
+function drawBar(ctx: CanvasRenderingContext2D, t: Theme, b: TeamView, x: number, y: number, w: number, h: number, fromRight: boolean) {
   const lag = (w * Math.max(0, b.hpLag)) / b.maxHp;
   const cur = (w * b.hp) / b.maxHp;
   ctx.save();
@@ -167,7 +198,7 @@ function drawBar(ctx: CanvasRenderingContext2D, t: Theme, b: Ball, x: number, y:
   ctx.globalAlpha *= 0.3;
   ctx.fillRect(fromRight ? x + w - lag : x, y, lag, h);
   ctx.globalAlpha /= 0.3;
-  ctx.fillStyle = b.healGlow > 0 ? '#1FAA59' : b.color;
+  ctx.fillStyle = b.healing ? '#1FAA59' : b.color;
   ctx.fillRect(fromRight ? x + w - cur : x, y, cur, h);
   ctx.restore();
 }
@@ -189,6 +220,64 @@ function drawArena(ctx: CanvasRenderingContext2D, g: Game, t: Theme) {
   ctx.lineWidth = 6;
   ctx.lineJoin = 'round';
   ctx.stroke();
+  ctx.restore();
+}
+
+/** Spider strands: a line with cross-ticks, grown in when fresh and fading out at the end of their life. */
+function drawWebs(ctx: CanvasRenderingContext2D, g: Game, t: Theme) {
+  ctx.save();
+  for (const w of g.webs) {
+    const grow = Math.min(1, w.age / 0.12);
+    const fade = Math.min(1, (WEB_LIFE - w.age) / 1.5);
+    const ex = w.a.x + (w.b.x - w.a.x) * grow;
+    const ey = w.a.y + (w.b.y - w.a.y) * grow;
+    const len = Math.hypot(ex - w.a.x, ey - w.a.y) || 1;
+    const nx = -(ey - w.a.y) / len;
+    const ny = (ex - w.a.x) / len;
+    ctx.globalAlpha = 0.55 * fade;
+    ctx.strokeStyle = t.text;
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    ctx.moveTo(w.a.x, w.a.y);
+    ctx.lineTo(ex, ey);
+    for (let d = 18; d < len - 8; d += 22) {
+      const k = d / len;
+      const cx = w.a.x + (ex - w.a.x) * k;
+      const cy = w.a.y + (ey - w.a.y) * k;
+      ctx.moveTo(cx - nx * 5, cy - ny * 5);
+      ctx.lineTo(cx + nx * 5, cy + ny * 5);
+    }
+    ctx.stroke();
+    ctx.globalAlpha = fade;
+    ctx.fillStyle = w.owner.color;
+    for (const p of [w.a, { x: ex, y: ey }]) ctx.fillRect(Math.round(p.x / PX) * PX - PX, Math.round(p.y / PX) * PX - PX, PX * 2, PX * 2);
+  }
+  ctx.restore();
+}
+
+/** A bomb with a blast-radius warning ring that tightens up as the fuse runs out. */
+function drawBomb(ctx: CanvasRenderingContext2D, bomb: Game['bombs'][number]) {
+  const k = 1 - bomb.fuse / bomb.maxFuse;
+  ctx.save();
+  ctx.globalAlpha = 0.1 + 0.35 * k;
+  ctx.strokeStyle = bomb.owner.color;
+  ctx.lineWidth = 3;
+  ctx.setLineDash([PX * 3, PX * 3]);
+  ctx.beginPath();
+  ctx.arc(bomb.x, bomb.y, bomb.radius, 0, Math.PI * 2);
+  ctx.stroke();
+  ctx.restore();
+  ctx.save();
+  ctx.translate(bomb.x, bomb.y);
+  const P = PX * bomb.owner.scale;
+  // Blinks faster as it gets closer to going off.
+  const lit = Math.floor(bomb.fuse * (k > 0.6 ? 16 : 6)) % 2 === 0;
+  drawBombSprite(ctx, bomb.owner.color, P, lit);
+  if (k > 0.6 && lit) {
+    ctx.globalAlpha = 0.45;
+    ctx.fillStyle = '#ffffff';
+    ctx.fillRect(-4 * P, -4 * P, 8 * P, 8 * P);
+  }
   ctx.restore();
 }
 

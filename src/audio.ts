@@ -85,6 +85,41 @@ export class Sfx {
     this.tone('sine', 110, 32, t, 0.75, 0.32);
   }
 
+  explosion() {
+    const t = this.ready('explosion', 0.06);
+    if (t === null) return;
+    this.tone('sine', 140, 30, t, 0.9, 0.6);
+    this.burst(t, 0.7, 0.6, 'lowpass', 1600);
+    this.burst(t, 0.3, 0.05, 'highpass', 2500);
+  }
+
+  drop() {
+    const t = this.ready('drop', 0.1);
+    if (t === null) return;
+    this.tone('square', 520, 260, t, 0.04, 0.06);
+  }
+
+  /** Strand shooting out to the wall. */
+  web() {
+    const t = this.ready('web', 0.08);
+    if (t === null) return;
+    this.burst(t, 0.08, 0.12, 'bandpass', 4200, 4);
+  }
+
+  snap() {
+    const t = this.ready('snap', 0.04);
+    if (t === null) return;
+    this.burst(t, 0.25, 0.05, 'highpass', 2800);
+    this.tone('triangle', 900, 300, t, 0.05, 0.06);
+  }
+
+  split() {
+    const t = this.ready('split', 0.08);
+    if (t === null) return;
+    this.tone('sine', 260, 90, t, 0.5, 0.18);
+    this.burst(t, 0.35, 0.12, 'bandpass', 1400, 1.2);
+  }
+
   bump() {
     const t = this.ready('bump', 0.05);
     if (t === null) return;

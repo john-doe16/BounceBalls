@@ -1,4 +1,5 @@
 import type { Vec } from './math';
+import type { Team } from './game';
 import type { Weapon } from './weapons';
 
 let nextId = 1;
@@ -7,6 +8,10 @@ export class Ball {
   readonly id = nextId++;
   vx = 0;
   vy = 0;
+  /** The fighter this ball belongs to (a Splitter's pieces share one). */
+  team!: Team;
+  /** How many times this ball has split (Splitter only). */
+  generation = 0;
   /** Size multiplier for the ball and its weapon. */
   scale = 1;
   r = 34;

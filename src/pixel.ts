@@ -16,6 +16,8 @@ const PALETTE: Record<string, string> = {
   B: '#5e3b1a', // dark wood
   g: '#f0b429', // gold
   G: '#a8730f', // dark gold
+  n: '#3a3f47', // iron
+  N: '#22262c', // dark iron
 };
 
 const cache = new WeakMap<Sprite, Map<string, HTMLCanvasElement>>();
@@ -194,6 +196,26 @@ export const MUSKET: Sprite = [
   'kbbbkk...k' + '.'.repeat(21) + 'kk',
   'kkkk',
 ];
+
+/** Body centered on column 4, row 8; fuse tip at column 6, row 0. */
+export const BOMB: Sprite = [
+  '......kk.',
+  '.....kbk.',
+  '....kbk..',
+  '..kccck..',
+  '..kkkkk..',
+  '.knnnnnk.',
+  'knwnnnnnk',
+  'knwnnnnnk',
+  'knnnnnnNk',
+  'knnnnnnNk',
+  'knnnnnNNk',
+  '.knnNNNk.',
+  '..kkkkk..',
+];
+
+/** One of the Splitter's spikes, pointing outward along +x. */
+export const SPIKE: Sprite = ['kk....', 'kckk..', 'kCssk.', 'kCmmsk', 'kCssk.', 'kckk..', 'kk....'];
 
 export const ARROW: Sprite = [
   'kk.......k..',
