@@ -1,11 +1,24 @@
 // Every sound is synthesized with Web Audio — no asset files needed.
 
+const BASE_GAIN = 0.7;
+
 export class Sfx {
   enabled = true;
+  /** 0..2, where 1 is the default level. */
+  private vol = 1;
   private ctx: AudioContext | null = null;
   private master!: GainNode;
   private noise!: AudioBuffer;
   private last: Record<string, number> = {};
+
+  get volume() {
+    return this.vol;
+  }
+
+  set volume(v: number) {
+    this.vol = v;
+    if (this.ctx) this.master.gain.setTargetAtTime(BASE_GAIN * v, this.ctx.currentTime, 0.02);
+  }
 
   /** Browsers only allow audio after a user gesture; call this from one. */
   unlock() {
@@ -16,7 +29,7 @@ export class Sfx {
       comp.threshold.value = -16;
       comp.ratio.value = 6;
       this.master = ctx.createGain();
-      this.master.gain.value = 0.55;
+      this.master.gain.value = BASE_GAIN * this.vol;
       this.master.connect(comp).connect(ctx.destination);
       this.noise = ctx.createBuffer(1, ctx.sampleRate, ctx.sampleRate);
       const data = this.noise.getChannelData(0);
@@ -151,7 +164,7 @@ export class Sfx {
     const out = this.bus();
     const t = ctx.currentTime;
     const ring = Math.min(Math.max(dur, 0.25), 1.6);
-    const peak = (0.2 * vel) / Math.sqrt(notes.length);
+    const peak = (0.32 * vel) / Math.sqrt(notes.length);
     for (const n of notes) {
       const f = 440 * Math.pow(2, (n - 69) / 12);
       const g = ctx.createGain();

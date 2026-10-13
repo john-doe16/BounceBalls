@@ -26,6 +26,7 @@ interface Settings {
   ballScale: number;
   speed: number;
   sound: boolean;
+  volume: number;
   trails: boolean;
   outline: boolean;
   autoRematch: boolean;
@@ -56,6 +57,7 @@ const DEFAULTS: Settings = {
   ballScale: 1,
   speed: 1,
   sound: true,
+  volume: 1,
   trails: true,
   outline: true,
   autoRematch: false,
@@ -101,6 +103,7 @@ function saveSettings() {
 const settings = loadSettings();
 const sfx = new Sfx();
 sfx.enabled = settings.sound;
+sfx.volume = settings.volume;
 /** MIDI files loaded this session. */
 const uploaded: Song[] = [];
 
@@ -358,7 +361,7 @@ function syncFormat() {
   $('shrinkRow').hidden = settings.format !== 'ring';
 }
 
-function bindRange(id: 'gravity' | 'speed' | 'ballScale', format: (v: number) => string, onChange: (v: number) => void) {
+function bindRange(id: 'gravity' | 'speed' | 'ballScale' | 'volume', format: (v: number) => string, onChange: (v: number) => void) {
   const input = $<HTMLInputElement>(id);
   const out = $<HTMLOutputElement>(`${id}Out`);
   input.value = String(settings[id]);
@@ -376,6 +379,11 @@ bindRange('gravity', (v) => String(v), (v) => {
   music.cfg.gravity = v;
 });
 bindRange('speed', (v) => `${v}x`, () => {});
+bindRange('volume', (v) => `${Math.round(v * 100)}%`, (v) => {
+  sfx.volume = v;
+  // Dragging the slider counts as a click, so it can also switch sound on.
+  sfx.unlock();
+});
 // Ball size changes spawn spacing, so it starts a fresh round.
 bindRange('ballScale', (v) => `${v.toFixed(1)}x`, restart);
 

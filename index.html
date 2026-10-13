@@ -86,6 +86,11 @@
         <section>
           <h2>Options</h2>
           <label class="field toggle"><span>Sound</span><input type="checkbox" id="sound" /></label>
+          <label class="field slider">
+            <span>Volume</span>
+            <input type="range" id="volume" min="0" max="2" step="0.05" />
+            <output id="volumeOut"></output>
+          </label>
           <label class="field toggle"><span>Trails</span><input type="checkbox" id="trails" /></label>
           <label class="field toggle"><span>Ball outline</span><input type="checkbox" id="outline" /></label>
           <label class="field toggle" data-mode="battle"><span>Auto rematch</span><input type="checkbox" id="autoRematch" /></label>
