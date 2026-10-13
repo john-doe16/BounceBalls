@@ -118,8 +118,12 @@ export function planFall(events: NoteEvent[], start: Vec, g: number, r: number):
       if (Math.hypot(vOut.x, vOut.y) > MAX_SPEED) continue;
       const n = facing(vIn, vOut);
       if (!n) continue;
+      // The ball has to be coming down when it reaches the next platform: a jump only works if
+      // the next note is far enough off for the ball to fall back.
+      if (vOut.y + g * next < 80) continue;
       const seg = platformSegment(q, n, r, half);
       const path = flightPoints(q, vOut, next, g);
+      const land = path[path.length - 1];
       let clashes = 0;
 
       // This platform vs the other platforms.
@@ -133,9 +137,18 @@ export function planFall(events: NoteEvent[], start: Vec, g: number, r: number):
       for (const pt of path) for (const o of nearPlats) if (dist(closestOnSegment(pt, o.a, o.b), pt) < clearBall) clashes++;
       for (const pt of path.slice(Math.ceil(SAMPLES * 0.3))) if (dist(closestOnSegment(pt, seg.a, seg.b), pt) < clearBall) clashes++;
 
-      const descent = (path[path.length - 1].y - q.y) / next;
-      const zigzag = Math.sign(vOut.x) === Math.sign(v.x) ? 0.3 : 0;
-      const score = clashes * 10 + Math.abs(descent - rate) / rate + zigzag + Math.random() * 0.15;
+      // Look ahead: the landing spot needs room for the next platform around it.
+      const room = r + PLATFORM_THICK + halfFor(next) + 6;
+      for (const o of [...nearPlats, seg]) if (dist(closestOnSegment(land, o.a, o.b), land) < room) clashes += 0.5;
+
+      // Bounciness: how much of the speed into the platform comes back out. Too little looks like
+      // the platform swallowed the ball (an upward-facing bar that doesn't launch it).
+      const e = (vOut.x * n.x + vOut.y * n.y) / -(vIn.x * n.x + vIn.y * n.y);
+      const bounce = e < BOUNCE_MIN ? BOUNCE_MIN - e : e > BOUNCE_MAX ? e - BOUNCE_MAX : 0;
+      const offScreen = land.x < X_MIN || land.x > X_MAX ? 1 : 0;
+      const descent = (land.y - q.y) / next;
+      const score =
+        clashes * 100 + bounce * 6 + offScreen * 4 + (0.4 * Math.abs(descent - rate)) / rate + Math.random() * 0.15;
       if (!best || score < best.score) best = { vOut, n, seg, path, score };
     }
 
@@ -156,18 +169,24 @@ export function planFall(events: NoteEvent[], start: Vec, g: number, r: number):
   return hits;
 }
 
-/** A spread of launches: left and right by varying amounts, falling at a few different rates. */
+/** Believable bounciness range: share of the speed into the platform that comes back out. */
+const BOUNCE_MIN = 0.6;
+const BOUNCE_MAX = 1.05;
+
+/**
+ * A spread of launches: left and right by varying amounts, either falling to the next note at a
+ * few rates or jumping up first.
+ */
 function candidates(q: Vec, next: number, g: number, base: number): Vec[] {
   const reach = Math.max(40, Math.min(260, 520 * next));
   const out: Vec[] = [];
+  const vys = [base * 0.75, base, base * 1.35, base * 1.8].map((rate) => rate - 0.5 * g * next);
+  for (const jump of [150, 300, 450, 600, 750]) vys.push(-jump);
   for (const frac of [-1, -0.8, -0.6, -0.4, -0.2, 0, 0.2, 0.4, 0.6, 0.8, 1]) {
     let target = q.x + frac * reach;
     if (target < X_MIN || target > X_MAX) target = q.x - frac * reach; // aim back on screen
     target = Math.min(X_MAX, Math.max(X_MIN, target));
-    for (const rate of [base * 0.75, base, base * 1.35, base * 1.8]) {
-      // Lands `rate * next` px lower when the next note is due.
-      out.push({ x: (target - q.x) / next, y: rate - 0.5 * g * next });
-    }
+    for (const vy of vys) out.push({ x: (target - q.x) / next, y: vy });
   }
   return out;
 }
