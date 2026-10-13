@@ -16,6 +16,8 @@ export interface MusicConfig {
   colorCycle: boolean;
   /** Pop up the note's name where the ball bounces. */
   showNotes: boolean;
+  /** Multiplies the ball's starting size. */
+  ballScale: number;
 }
 
 export interface Ring {
@@ -69,7 +71,7 @@ export class MusicGame {
     this.ball.vy = Math.sin(a) * s;
 
     if (cfg.format === 'escape') {
-      this.ball.r = 9;
+      this.ball.r = 9 * cfg.ballScale;
       const spacing = (ESCAPE_OUTER - ESCAPE_INNER) / (ESCAPE_RINGS - 1);
       for (let i = 0; i < ESCAPE_RINGS; i++) {
         const r = ESCAPE_INNER + i * spacing;
@@ -85,7 +87,7 @@ export class MusicGame {
         });
       }
     } else {
-      this.ball.r = cfg.format === 'grow' ? 14 : 18;
+      this.ball.r = (cfg.format === 'grow' ? 14 : 18) * cfg.ballScale;
       this.ball.x = ARENA.cx + rand(-60, 60);
       this.ball.y = ARENA.cy - 120;
       this.rings.push({ r: OUTER, thick: 0, angle: 0, speed: 0, gapHalf: 0, color: '', broken: false, flash: 0 });

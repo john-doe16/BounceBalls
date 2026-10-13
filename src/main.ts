@@ -116,7 +116,7 @@ function newGame() {
 
 function newMusic() {
   return new MusicGame(
-    { format: settings.format, song: currentSong(), gravity: settings.gravity, shrink: settings.shrink, colorCycle: settings.colorCycle, showNotes: settings.showNotes },
+    { format: settings.format, song: currentSong(), gravity: settings.gravity, shrink: settings.shrink, colorCycle: settings.colorCycle, showNotes: settings.showNotes, ballScale: settings.ballScale },
     sfx,
   );
 }
