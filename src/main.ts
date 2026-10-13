@@ -27,6 +27,7 @@ interface Settings {
   speed: number;
   sound: boolean;
   trails: boolean;
+  outline: boolean;
   autoRematch: boolean;
   songId: string;
   format: MusicFormat;
@@ -56,6 +57,7 @@ const DEFAULTS: Settings = {
   speed: 1,
   sound: true,
   trails: true,
+  outline: true,
   autoRematch: false,
   songId: SONGS[0].id,
   format: 'ring',
@@ -376,7 +378,7 @@ bindRange('speed', (v) => `${v}x`, () => {});
 // Ball size changes spawn spacing, so it starts a fresh round.
 bindRange('ballScale', (v) => `${v.toFixed(1)}x`, restart);
 
-type CheckId = 'sound' | 'trails' | 'autoRematch' | 'autoRestart' | 'shrink' | 'colorCycle' | 'showNotes' | 'ballNumber';
+type CheckId = 'sound' | 'trails' | 'outline' | 'autoRematch' | 'autoRestart' | 'shrink' | 'colorCycle' | 'showNotes' | 'ballNumber';
 function bindCheck(id: CheckId, onChange: (v: boolean) => void = () => {}) {
   const input = $<HTMLInputElement>(id);
   input.checked = settings[id];
@@ -391,6 +393,7 @@ bindCheck('sound', (v) => {
   if (v) sfx.unlock();
 });
 bindCheck('trails');
+bindCheck('outline');
 bindCheck('autoRematch');
 bindCheck('autoRestart');
 bindCheck('shrink', restart);
@@ -428,11 +431,11 @@ function frame(now: number) {
   if (settings.mode === 'battle') {
     if (!paused) game.advance(realDt, settings.speed);
     if (settings.autoRematch && game.winner !== undefined && game.overTime > 4.5) restart();
-    render(ctx, game, { theme: settings.theme, trails: settings.trails, paused, autoRematch: settings.autoRematch });
+    render(ctx, game, { theme: settings.theme, trails: settings.trails, outline: settings.outline, paused, autoRematch: settings.autoRematch });
   } else {
     if (!paused) music.advance(realDt, settings.speed);
     if (settings.autoRestart && music.readyToRestart) restart();
-    renderMusic(ctx, music, { theme: settings.theme, trails: settings.trails, paused, ballNumber: settings.ballNumber });
+    renderMusic(ctx, music, { theme: settings.theme, trails: settings.trails, outline: settings.outline, paused, ballNumber: settings.ballNumber });
   }
   requestAnimationFrame(frame);
 }

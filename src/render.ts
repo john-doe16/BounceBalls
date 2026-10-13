@@ -23,6 +23,8 @@ export const FONT = "'Barlow Condensed', 'Arial Narrow', sans-serif";
 export interface RenderOpts {
   theme: ThemeName;
   trails: boolean;
+  /** Draw the dark outline around each ball. */
+  outline: boolean;
   paused: boolean;
   autoRematch: boolean;
 }
@@ -50,7 +52,7 @@ export function render(ctx: CanvasRenderingContext2D, g: Game, o: RenderOpts) {
     else drawArrow(ctx, a.x, a.y, Math.atan2(a.vy, a.vx), a.owner.color, PX * a.owner.scale);
   }
   for (const bomb of g.bombs) drawBomb(ctx, bomb);
-  for (const b of g.balls) if (b.alive) drawBody(ctx, b);
+  for (const b of g.balls) if (b.alive) drawBody(ctx, b, o.outline);
   for (const b of g.balls) if (b.alive) b.weapon.draw(ctx, b);
   for (const b of g.balls) if (b.alive) drawHpLabel(ctx, b);
   if (g.grab) drawGrab(ctx, g, t);
@@ -282,15 +284,17 @@ function drawTrail(ctx: CanvasRenderingContext2D, b: Ball) {
   ctx.restore();
 }
 
-function drawBody(ctx: CanvasRenderingContext2D, b: Ball) {
+function drawBody(ctx: CanvasRenderingContext2D, b: Ball, outline: boolean) {
   ctx.save();
   ctx.fillStyle = b.color;
   ctx.beginPath();
   ctx.arc(b.x, b.y, b.r, 0, Math.PI * 2);
   ctx.fill();
-  ctx.lineWidth = 4 * Math.min(1.25, b.scale);
-  ctx.strokeStyle = INK;
-  ctx.stroke();
+  if (outline) {
+    ctx.lineWidth = 4 * Math.min(1.25, b.scale);
+    ctx.strokeStyle = INK;
+    ctx.stroke();
+  }
   if (b.flash > 0) {
     ctx.globalAlpha = b.flash * 0.85;
     ctx.fillStyle = '#ffffff';

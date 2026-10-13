@@ -6,6 +6,8 @@ import type { MusicGame, Ring } from './musicGame';
 export interface MusicRenderOpts {
   theme: ThemeName;
   trails: boolean;
+  /** Draw the dark outline around the ball. */
+  outline: boolean;
   paused: boolean;
   /** Show the bounce count inside the ball (when it's big enough to read). */
   ballNumber: boolean;
@@ -53,9 +55,11 @@ export function renderMusic(ctx: CanvasRenderingContext2D, m: MusicGame, o: Musi
   ctx.beginPath();
   ctx.arc(b.x, b.y, b.r, 0, Math.PI * 2);
   ctx.fill();
-  ctx.lineWidth = Math.min(6, 3 + b.r / 40);
-  ctx.strokeStyle = INK;
-  ctx.stroke();
+  if (o.outline) {
+    ctx.lineWidth = Math.min(6, 3 + b.r / 40);
+    ctx.strokeStyle = INK;
+    ctx.stroke();
+  }
   if (o.ballNumber && b.r >= 14) {
     // The bounce count lives inside the ball.
     ctx.save();
