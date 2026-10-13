@@ -12,10 +12,23 @@ export interface NoteEvent {
   vel: number;
 }
 
+/** Synth voice a part is played with. */
+export type Voice = 'keys' | 'lead' | 'bass' | 'pad' | 'drums';
+
+/** One instrument's line, e.g. the melody or the bass. Beat Sync can give each its own ball. */
+export interface Part {
+  name: string;
+  voice: Voice;
+  events: NoteEvent[];
+}
+
 export interface Song {
   id: string;
   name: string;
+  /** Every pitched note, merged; used by the one-ball formats. */
   events: NoteEvent[];
+  /** The song split by instrument. */
+  parts?: Part[];
 }
 
 const SEMITONES: Record<string, number> = { C: 0, D: 2, E: 4, F: 5, G: 7, A: 9, B: 11 };
@@ -50,7 +63,28 @@ function score(id: string, name: string, text: string): Song {
       time += dur;
       return ev;
     });
-  return { id, name, events };
+  return { id, name, events, parts: splitBass(events) };
+}
+
+/**
+ * The built-in scores have no instruments, so split them simply: the low note of each chord
+ * (below E3) becomes the bass part and everything else is the melody.
+ */
+function splitBass(events: NoteEvent[]): Part[] {
+  const melody: NoteEvent[] = [];
+  const bass: NoteEvent[] = [];
+  for (const e of events) {
+    const low = Math.min(...e.notes);
+    if (e.notes.length > 1 && low < noteNumber('E3')) {
+      bass.push({ ...e, notes: [low] });
+      melody.push({ ...e, notes: e.notes.filter((n) => n !== low) });
+    } else {
+      melody.push(e);
+    }
+  }
+  const parts: Part[] = [{ name: 'MELODY', voice: 'keys', events: melody }];
+  if (bass.length) parts.push({ name: 'BASS', voice: 'bass', events: bass });
+  return parts;
 }
 
 const FUR_ELISE_A = `

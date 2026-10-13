@@ -18,6 +18,25 @@ export interface Hit {
   color: number;
   /** Half the platform's length: shorter on quick notes so a fast run of them doesn't crowd. */
   half: number;
+  /**
+   * Set when the ball drops in for this hit (the first note, or the first after a long rest):
+   * it appears at `p` at time `t` and falls straight onto the platform.
+   */
+  launch?: { t: number; p: Vec };
+}
+
+export interface PlanOptions {
+  /** Horizontal band the ball stays in (a lane). */
+  xMin?: number;
+  xMax?: number;
+  /** Longest platform half-length. */
+  halfMax?: number;
+  /**
+   * Lane mode: hits are placed on the song's absolute clock (so parallel parts line up), and a
+   * rest longer than `restMax` seconds ends the phrase: the ball fades out and drops back in.
+   */
+  absolute?: boolean;
+  restMax?: number;
 }
 
 /** Notes closer together than this are played as one hit. */
@@ -63,7 +82,9 @@ export interface PlatformSeg {
 }
 
 /** Platform half-length for a note followed by a gap of `next` seconds. */
-const halfFor = (next: number) => Math.max(24, Math.min(PLATFORM_HALF, 260 * next));
+const halfFor = (next: number, max = PLATFORM_HALF) => Math.max(Math.min(24, max), Math.min(max, 260 * next));
+/** How long a ball keeps flying (and fading) after the last note of a phrase. */
+export const PHRASE_TAIL = 0.6;
 
 /** The platform bar for a hit at ball center `p` with normal `n`. */
 export function platformSegment(p: Vec, n: Vec, r: number, half = PLATFORM_HALF): PlatformSeg {
@@ -90,31 +111,48 @@ function flightPoints(p: Vec, v: Vec, T: number, g: number): Vec[] {
  * produce, (2) puts its platform clear of other platforms and earlier flight paths, and (3) flies
  * to the next hit without clipping any platform.
  */
-export function planFall(events: NoteEvent[], start: Vec, g: number, r: number): Hit[] {
+export function planFall(events: NoteEvent[], start: Vec, g: number, r: number, opts: PlanOptions = {}): Hit[] {
+  const xMin = opts.xMin ?? X_MIN;
+  const xMax = opts.xMax ?? X_MAX;
+  const halfMax = opts.halfMax ?? PLATFORM_HALF;
+  const restMax = opts.restMax ?? Infinity;
+  const hitTime = (i: number) => LEAD_IN + events[i].time - (opts.absolute ? 0 : events[0].time);
   const hits: Hit[] = [];
   const platforms: PlatformSeg[] = [];
   /** Committed flight paths; the latest one ends at the current hit. */
   const flights: Vec[][] = [];
   let p = { ...start };
   let v = { x: 0, y: 0 };
-  let t = 0;
   const clearBall = r + PLATFORM_THICK / 2 + 3;
   const clearPlat = PLATFORM_THICK + 10;
 
   for (let i = 0; i < events.length; i++) {
-    const T = i === 0 ? LEAD_IN : Math.max(MERGE, events[i].time - events[i - 1].time);
+    const gapBefore = i === 0 ? Infinity : events[i].time - events[i - 1].time;
+    const gapAfter = i + 1 < events.length ? events[i + 1].time - events[i].time : Infinity;
+    // A new phrase: drop the ball in fresh rather than flying it through a long silence.
+    let launch: Hit['launch'];
+    if (i === 0 || gapBefore > restMax) {
+      // Drops in a little below where the last phrase ended, so the camera barely moves.
+      const x = i === 0 ? start.x : Math.min(xMax, Math.max(xMin, p.x));
+      const y = i === 0 ? start.y : p.y + 60;
+      launch = { t: hitTime(i) - LEAD_IN, p: { x, y } };
+      p = launch.p;
+      v = { x: 0, y: 0 };
+    }
+    const T = launch ? LEAD_IN : Math.max(MERGE, gapBefore);
     const q = { x: p.x + v.x * T, y: p.y + v.y * T + 0.5 * g * T * T };
     const vIn = { x: v.x, y: v.y + g * T };
-    const next = i + 1 < events.length ? Math.max(MERGE, events[i + 1].time - events[i].time) : 0.6;
+    const phraseEnds = gapAfter > restMax || i + 1 === events.length;
+    const next = phraseEnds ? PHRASE_TAIL : Math.max(MERGE, gapAfter);
 
-    const half = halfFor(Math.min(T, next));
+    const half = halfFor(Math.min(T, next), halfMax);
     // Fall faster through quick runs of notes so the hits don't stack up.
     const rate = Math.max(DESCENT, MIN_STEP / next);
     const nearPlats = platforms.slice(-LOOKBACK);
     const nearFlights = flights.slice(-LOOKBACK);
     let best: { vOut: Vec; n: Vec; seg: PlatformSeg; path: Vec[]; score: number } | null = null;
 
-    for (const vOut of candidates(q, next, g, rate)) {
+    for (const vOut of candidates(q, next, g, rate, xMin, xMax)) {
       if (Math.hypot(vOut.x, vOut.y) > MAX_SPEED) continue;
       const n = facing(vIn, vOut);
       if (!n) continue;
@@ -145,10 +183,9 @@ export function planFall(events: NoteEvent[], start: Vec, g: number, r: number):
       // the platform swallowed the ball (an upward-facing bar that doesn't launch it).
       const e = (vOut.x * n.x + vOut.y * n.y) / -(vIn.x * n.x + vIn.y * n.y);
       const bounce = e < BOUNCE_MIN ? BOUNCE_MIN - e : e > BOUNCE_MAX ? e - BOUNCE_MAX : 0;
-      const offScreen = land.x < X_MIN || land.x > X_MAX ? 1 : 0;
-      const descent = (land.y - q.y) / next;
-      const score =
-        clashes * 100 + bounce * 6 + offScreen * 4 + (0.4 * Math.abs(descent - rate)) / rate + Math.random() * 0.15;
+      const offScreen = land.x < xMin || land.x > xMax ? 1 : 0;
+      const drift = (0.4 * Math.abs((land.y - q.y) / next - rate)) / rate;
+      const score = clashes * 100 + bounce * 6 + offScreen * 4 + drift + Math.random() * 0.15;
       if (!best || score < best.score) best = { vOut, n, seg, path, score };
     }
 
@@ -159,12 +196,11 @@ export function planFall(events: NoteEvent[], start: Vec, g: number, r: number):
       best = { vOut, n, seg: platformSegment(q, n, r, half), path: flightPoints(q, vOut, next, g), score: 0 };
     }
 
-    hits.push({ t: t + T, p: q, vIn, vOut: best.vOut, n: best.n, ev: events[i], color: i, half });
+    hits.push({ t: hitTime(i), p: q, vIn, vOut: best.vOut, n: best.n, ev: events[i], color: i, half, launch });
     platforms.push(best.seg);
     flights.push(best.path);
     p = q;
     v = best.vOut;
-    t += T;
   }
   return hits;
 }
@@ -177,15 +213,15 @@ const BOUNCE_MAX = 1.05;
  * A spread of launches: left and right by varying amounts, either falling to the next note at a
  * few rates or jumping up first.
  */
-function candidates(q: Vec, next: number, g: number, base: number): Vec[] {
-  const reach = Math.max(40, Math.min(260, 520 * next));
+function candidates(q: Vec, next: number, g: number, base: number, xMin: number, xMax: number): Vec[] {
+  const reach = Math.max(30, Math.min(260, (xMax - xMin) * 0.9, 520 * next));
   const out: Vec[] = [];
   const vys = [base * 0.75, base, base * 1.35, base * 1.8].map((rate) => rate - 0.5 * g * next);
   for (const jump of [150, 300, 450, 600, 750]) vys.push(-jump);
   for (const frac of [-1, -0.8, -0.6, -0.4, -0.2, 0, 0.2, 0.4, 0.6, 0.8, 1]) {
     let target = q.x + frac * reach;
-    if (target < X_MIN || target > X_MAX) target = q.x - frac * reach; // aim back on screen
-    target = Math.min(X_MAX, Math.max(X_MIN, target));
+    if (target < xMin || target > xMax) target = q.x - frac * reach; // aim back on screen
+    target = Math.min(xMax, Math.max(xMin, target));
     for (const vy of vys) out.push({ x: (target - q.x) / next, y: vy });
   }
   return out;

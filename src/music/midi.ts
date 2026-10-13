@@ -1,4 +1,4 @@
-import type { NoteEvent, Song } from './songs';
+import type { NoteEvent, Part, Song, Voice } from './songs';
 
 /** Notes starting closer together than this (seconds) are played as one chord. */
 const CHORD_WINDOW = 0.03;
@@ -7,7 +7,7 @@ const DRUM_CHANNEL = 9;
 interface RawEvent {
   tick: number;
   order: number;
-  kind: 'on' | 'off' | 'tempo';
+  kind: 'on' | 'off' | 'tempo' | 'program';
   ch: number;
   note: number;
   vel: number;
@@ -83,8 +83,11 @@ export function parseMidi(buf: ArrayBuffer, name: string): Song {
         const note = u8();
         const vel = u8();
         const kind = type === 0x90 && vel > 0 ? 'on' : 'off';
-        if (ch !== DRUM_CHANNEL) events.push({ tick, order: order++, kind, ch, note, vel: vel / 127, tempo: 0 });
-      } else if (type === 0xc0 || type === 0xd0) {
+        events.push({ tick, order: order++, kind, ch, note, vel: vel / 127, tempo: 0 });
+      } else if (type === 0xc0) {
+        // Program change: which instrument this channel plays (General MIDI numbering).
+        events.push({ tick, order: order++, kind: 'program', ch, note: u8(), vel: 0, tempo: 0 });
+      } else if (type === 0xd0) {
         p += 1;
       } else {
         p += 2;
@@ -105,14 +108,17 @@ export function parseMidi(buf: ArrayBuffer, name: string): Song {
     return { ...e, time: seconds };
   });
 
-  // Pair note-ons with their note-offs for durations.
-  const open = new Map<string, { time: number; vel: number; note: number }[]>();
-  const notes: { time: number; note: number; vel: number; dur: number }[] = [];
+  // Pair note-ons with their note-offs for durations; remember each channel's instrument.
+  const programs = new Map<number, number>();
+  const open = new Map<string, { time: number; vel: number; note: number; ch: number }[]>();
+  const notes: Played[] = [];
   for (const e of timed) {
     const key = `${e.ch}:${e.note}`;
-    if (e.kind === 'on') {
+    if (e.kind === 'program') {
+      if (!programs.has(e.ch)) programs.set(e.ch, e.note);
+    } else if (e.kind === 'on') {
       const list = open.get(key) ?? [];
-      list.push({ time: e.time, vel: e.vel, note: e.note });
+      list.push({ time: e.time, vel: e.vel, note: e.note, ch: e.ch });
       open.set(key, list);
     } else if (e.kind === 'off') {
       const start = open.get(key)?.shift();
@@ -121,10 +127,31 @@ export function parseMidi(buf: ArrayBuffer, name: string): Song {
   }
   for (const list of open.values()) for (const s of list) notes.push({ ...s, dur: 0.5 });
   notes.sort((a, b) => a.time - b.time);
-  if (!notes.length) throw new Error('No notes found in this MIDI file.');
+  const pitched = notes.filter((n) => n.ch !== DRUM_CHANNEL);
+  if (!pitched.length) throw new Error('No notes found in this MIDI file.');
 
+  // Every part shares one clock starting at the first note of any kind.
+  const zero = notes[0].time;
+  return {
+    id: `upload:${name}`,
+    name: name.replace(/\.(mid|midi)$/i, ''),
+    events: chords(pitched, zero),
+    parts: buildParts(notes, programs, zero),
+  };
+}
+
+interface Played {
+  time: number;
+  note: number;
+  vel: number;
+  dur: number;
+  ch: number;
+}
+
+/** Groups notes that start within CHORD_WINDOW of each other into chords. */
+function chords(notes: Played[], zero: number): NoteEvent[] {
   const out: NoteEvent[] = [];
-  let groupStart = -1;
+  let groupStart = -Infinity;
   for (const n of notes) {
     const last = out[out.length - 1];
     if (last && n.time - groupStart < CHORD_WINDOW) {
@@ -132,9 +159,55 @@ export function parseMidi(buf: ArrayBuffer, name: string): Song {
       last.dur = Math.max(last.dur, n.dur);
       last.vel = Math.max(last.vel, n.vel);
     } else {
-      out.push({ time: n.time - notes[0].time, notes: [n.note], dur: n.dur, vel: n.vel });
+      out.push({ time: n.time - zero, notes: [n.note], dur: n.dur, vel: n.vel });
       groupStart = n.time;
     }
   }
-  return { id: `upload:${name}`, name: name.replace(/\.(mid|midi)$/i, ''), events: out };
+  return out;
+}
+
+/** Most pitched parts that get their own ball; quieter channels fold into the closest one. */
+const MAX_PITCHED = 3;
+
+/**
+ * Splits the song into instrument parts: the busiest channels each become a part (folding the
+ * rest into whichever kept part plays closest in pitch), plus a drum part if there are drums.
+ */
+function buildParts(notes: Played[], programs: Map<number, number>, zero: number): Part[] {
+  const byCh = new Map<number, Played[]>();
+  for (const n of notes) {
+    const list = byCh.get(n.ch) ?? [];
+    list.push(n);
+    byCh.set(n.ch, list);
+  }
+  const avgPitch = (list: Played[]) => list.reduce((s, n) => s + n.note, 0) / list.length;
+  const channels = [...byCh.entries()].filter(([ch]) => ch !== DRUM_CHANNEL).sort((a, b) => b[1].length - a[1].length);
+  const kept = channels.slice(0, MAX_PITCHED).map(([ch, list]) => ({ ch, list: [...list], pitch: avgPitch(list) }));
+  for (const [, list] of channels.slice(MAX_PITCHED)) {
+    const pitch = avgPitch(list);
+    const home = kept.reduce((a, b) => (Math.abs(b.pitch - pitch) < Math.abs(a.pitch - pitch) ? b : a));
+    home.list.push(...list);
+  }
+
+  kept.sort((a, b) => b.pitch - a.pitch);
+  let harmony = 0;
+  const parts: Part[] = kept.map((k, i) => {
+    k.list.sort((a, b) => a.time - b.time);
+    const voice = voiceFor(programs.get(k.ch), k.pitch);
+    const name = voice === 'bass' ? 'BASS' : i === 0 ? 'MELODY' : `HARMONY${++harmony > 1 ? ` ${harmony}` : ''}`;
+    return { name, voice, events: chords(k.list, zero) };
+  });
+  const drums = byCh.get(DRUM_CHANNEL);
+  if (drums?.length) parts.push({ name: 'DRUMS', voice: 'drums', events: chords(drums, zero) });
+  return parts;
+}
+
+/** Picks a synth voice from the General MIDI instrument number, falling back on pitch. */
+function voiceFor(program: number | undefined, pitch: number): Voice {
+  if (program !== undefined) {
+    if (program >= 32 && program <= 39) return 'bass';
+    if ((program >= 40 && program <= 55) || (program >= 88 && program <= 95)) return 'pad';
+    if ((program >= 56 && program <= 87) || (program >= 24 && program <= 31)) return 'lead';
+  }
+  return pitch < 48 ? 'bass' : 'keys';
 }

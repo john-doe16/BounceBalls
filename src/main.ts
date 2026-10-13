@@ -37,6 +37,7 @@ interface Settings {
   colorCycle: boolean;
   showNotes: boolean;
   ballNumber: boolean;
+  splitParts: boolean;
   autoRestart: boolean;
 }
 
@@ -69,6 +70,7 @@ const DEFAULTS: Settings = {
   colorCycle: true,
   showNotes: true,
   ballNumber: true,
+  splitParts: true,
   autoRestart: false,
 };
 
@@ -122,7 +124,7 @@ function newGame() {
 
 function newMusic() {
   return new MusicGame(
-    { format: settings.format, song: currentSong(), gravity: settings.gravity, shrink: settings.shrink, colorCycle: settings.colorCycle, showNotes: settings.showNotes, ballScale: settings.ballScale },
+    { format: settings.format, song: currentSong(), gravity: settings.gravity, shrink: settings.shrink, colorCycle: settings.colorCycle, showNotes: settings.showNotes, ballScale: settings.ballScale, split: settings.splitParts },
     sfx,
   );
 }
@@ -318,7 +320,8 @@ midiInput.addEventListener('change', async () => {
     else uploaded.push(song);
     settings.songId = song.id;
     renderSongs();
-    showSongInfo(`Loaded "${song.name}": ${song.events.length} notes. Files you load last until you close the page.`);
+    const parts = song.parts?.length ?? 1;
+    showSongInfo(`Loaded "${song.name}": ${song.events.length} notes, ${parts} instrument${parts === 1 ? '' : 's'}. Files you load last until you close the page.`);
     restart();
   } catch (err) {
     showSongInfo(err instanceof Error ? err.message : "Couldn't read that file.", true);
@@ -361,6 +364,7 @@ syncTheme();
 function syncFormat() {
   $('formatInfo').textContent = FORMAT_INFO[settings.format];
   $('shrinkRow').hidden = settings.format !== 'ring';
+  $('splitRow').hidden = settings.format !== 'sync';
 }
 
 function bindRange(id: 'gravity' | 'speed' | 'ballScale' | 'volume' | 'zoom', format: (v: number) => string, onChange: (v: number) => void) {
@@ -390,7 +394,7 @@ bindRange('volume', (v) => `${Math.round(v * 100)}%`, (v) => {
 // Ball size changes spawn spacing, so it starts a fresh round.
 bindRange('ballScale', (v) => `${v.toFixed(1)}x`, restart);
 
-type CheckId = 'sound' | 'trails' | 'outline' | 'autoRematch' | 'autoRestart' | 'shrink' | 'colorCycle' | 'showNotes' | 'ballNumber';
+type CheckId = 'sound' | 'trails' | 'outline' | 'autoRematch' | 'autoRestart' | 'shrink' | 'colorCycle' | 'showNotes' | 'ballNumber' | 'splitParts';
 function bindCheck(id: CheckId, onChange: (v: boolean) => void = () => {}) {
   const input = $<HTMLInputElement>(id);
   input.checked = settings[id];
@@ -412,6 +416,7 @@ bindCheck('shrink', restart);
 bindCheck('colorCycle', (v) => (music.cfg.colorCycle = v));
 bindCheck('showNotes', (v) => (music.cfg.showNotes = v));
 bindCheck('ballNumber');
+bindCheck('splitParts', restart);
 
 $('fight').addEventListener('click', () => {
   sfx.unlock();

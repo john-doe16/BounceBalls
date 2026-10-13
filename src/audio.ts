@@ -1,5 +1,27 @@
 // Every sound is synthesized with Web Audio — no asset files needed.
 
+import type { Voice } from './music/songs';
+
+interface VoiceShape {
+  /** [waveform, frequency multiple, level] layered per note. */
+  partials: [OscillatorType, number, number][];
+  attack: number;
+  /** Level it settles to after the first hit, as a share of the peak. */
+  sustain: number;
+  /** Filter opens to this multiple of the note's frequency, then closes partway. */
+  bright: number;
+  maxCutoff: number;
+  gain: number;
+}
+
+/** The instrument voices: different enough that parts are easy to tell apart. */
+const VOICES: Record<Exclude<Voice, 'drums'>, VoiceShape> = {
+  keys: { partials: [['triangle', 1, 1], ['sine', 2, 0.25], ['sine', 1.003, 0.4]], attack: 0.006, sustain: 0.35, bright: 8, maxCutoff: 4000, gain: 1 },
+  lead: { partials: [['sawtooth', 1, 0.45], ['square', 1, 0.2], ['triangle', 2, 0.15]], attack: 0.01, sustain: 0.6, bright: 6, maxCutoff: 3500, gain: 1.7 },
+  bass: { partials: [['sine', 1, 1], ['triangle', 1, 0.6], ['sawtooth', 1, 0.12]], attack: 0.005, sustain: 0.55, bright: 6, maxCutoff: 900, gain: 0.8 },
+  pad: { partials: [['sawtooth', 1, 0.3], ['sawtooth', 1.007, 0.3], ['triangle', 0.5, 0.3]], attack: 0.06, sustain: 0.7, bright: 4, maxCutoff: 1800, gain: 1.6 },
+};
+
 const BASE_GAIN = 0.7;
 
 export class Sfx {
@@ -157,32 +179,32 @@ export class Sfx {
     return bus;
   }
 
-  /** A soft piano-like voice. `notes` are MIDI numbers played together as a chord. */
-  chord(notes: number[], dur: number, vel = 0.8) {
+  /** Plays MIDI notes together as a chord in the given voice. */
+  chord(notes: number[], dur: number, vel = 0.8, voice: Voice = 'keys') {
     if (!this.enabled || !this.ctx || this.ctx.state !== 'running') return;
+    if (voice === 'drums') {
+      for (const n of notes) this.drum(n, vel);
+      return;
+    }
     const ctx = this.ctx;
     const out = this.bus();
+    const v = VOICES[voice];
     const t = ctx.currentTime;
     const ring = Math.min(Math.max(dur, 0.25), 1.6);
-    const peak = (0.32 * vel) / Math.sqrt(notes.length);
+    const peak = (0.32 * v.gain * vel) / Math.sqrt(notes.length);
     for (const n of notes) {
       const f = 440 * Math.pow(2, (n - 69) / 12);
       const g = ctx.createGain();
       g.gain.setValueAtTime(0.0001, t);
-      g.gain.exponentialRampToValueAtTime(peak, t + 0.006);
-      g.gain.exponentialRampToValueAtTime(peak * 0.35, t + 0.25);
-      g.gain.exponentialRampToValueAtTime(0.0001, t + 0.25 + ring);
+      g.gain.exponentialRampToValueAtTime(peak, t + v.attack);
+      g.gain.exponentialRampToValueAtTime(peak * v.sustain, t + v.attack + 0.25);
+      g.gain.exponentialRampToValueAtTime(0.0001, t + v.attack + 0.25 + ring);
       const lp = ctx.createBiquadFilter();
       lp.type = 'lowpass';
-      lp.frequency.setValueAtTime(Math.min(9000, f * 8), t);
-      lp.frequency.exponentialRampToValueAtTime(Math.min(4000, f * 3), t + 0.3);
+      lp.frequency.setValueAtTime(Math.min(9000, f * v.bright), t);
+      lp.frequency.exponentialRampToValueAtTime(Math.min(v.maxCutoff, f * v.bright * 0.4), t + 0.3);
       lp.connect(g).connect(out);
-      const partials: [OscillatorType, number, number][] = [
-        ['triangle', 1, 1],
-        ['sine', 2, 0.25],
-        ['sine', 1.003, 0.4],
-      ];
-      for (const [type, mult, level] of partials) {
+      for (const [type, mult, level] of v.partials) {
         const o = ctx.createOscillator();
         o.type = type;
         o.frequency.value = f * mult;
@@ -190,8 +212,35 @@ export class Sfx {
         lg.gain.value = level;
         o.connect(lg).connect(lp);
         o.start(t);
-        o.stop(t + 0.3 + ring);
+        o.stop(t + v.attack + 0.3 + ring);
       }
+    }
+  }
+
+  /** One General MIDI drum note: kicks, snares, hats, toms and cymbals are synthesized from noise and sweeps. */
+  private drum(n: number, vel: number) {
+    const t = this.ctx!.currentTime;
+    const k = 0.4 + 0.6 * vel;
+    if (n === 35 || n === 36) {
+      this.tone('sine', 160, 42, t, 1.0 * k, 0.28);
+      this.burst(t, 0.15 * k, 0.02, 'lowpass', 3000);
+    } else if (n >= 37 && n <= 40) {
+      this.burst(t, 1.1 * k, 0.16, 'bandpass', 1900, 0.7);
+      this.tone('triangle', 200, 150, t, 0.25 * k, 0.1);
+    } else if (n === 42 || n === 44) {
+      this.burst(t, 0.5 * k, 0.05, 'highpass', 7500);
+    } else if (n === 46) {
+      this.burst(t, 0.2 * k, 0.3, 'highpass', 7000);
+    } else if (n === 49 || n === 52 || n === 55 || n === 57) {
+      this.burst(t, 0.28 * k, 1.1, 'highpass', 5000);
+    } else if (n === 51 || n === 53 || n === 59) {
+      this.burst(t, 0.16 * k, 0.4, 'highpass', 6000);
+      this.tone('square', 5200, 5200, t, 0.015 * k, 0.05);
+    } else if (n >= 41 && n <= 50) {
+      const f = 70 + (n - 41) * 18;
+      this.tone('sine', f * 1.6, f, t, 0.6 * k, 0.3);
+    } else {
+      this.burst(t, 0.15 * k, 0.04, 'highpass', 4000);
     }
   }
 
