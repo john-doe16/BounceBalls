@@ -64,7 +64,7 @@ const DEFAULTS: Settings = {
 
 const FORMAT_INFO: Record<MusicFormat, string> = {
   ring: 'One ball in one ring. Every bounce plays the next note.',
-  escape: 'Break out through the gaps in 10 spinning rings. Each ring shatters on the way out.',
+  escape: 'Break out through the gaps in 20 spinning rings. Each ring shatters on the way out.',
   grow: 'The ball grows on every bounce until it fills the ring.',
 };
 

@@ -23,6 +23,8 @@ export interface Ring {
   speed: number;
   /** Half-width of the gap in radians; 0 for a solid ring. */
   gapHalf: number;
+  /** Band thickness. Escape rings are as thick as their spacing, so neighbors touch. */
+  thick: number;
   color: string;
   broken: boolean;
   flash: number;
@@ -32,8 +34,13 @@ const DT = 1 / 240;
 /** Flat palette the ball and escape rings cycle through. */
 export const MUSIC_COLORS = ['#E63946', '#F26B1D', '#F4B400', '#2BA84A', '#14A3A3', '#2F6FDE', '#7B4FD6', '#C2255C'];
 const OUTER = ARENA.half;
-const ESCAPE_RINGS = 10;
+const ESCAPE_RINGS = 20;
+const ESCAPE_INNER = 70;
+const ESCAPE_OUTER = 300;
 const FINISH_HOLD = 3.5;
+/** Escape gaps: at least this many radians wide, or this many px of arc on small rings. */
+const GAP_MIN = 0.6;
+const GAP_ARC = 70;
 
 export class MusicGame {
   ball: { x: number; y: number; vx: number; vy: number; r: number } = { x: ARENA.cx, y: ARENA.cy, vx: 0, vy: 0, r: 16 };
@@ -60,14 +67,16 @@ export class MusicGame {
     this.ball.vy = Math.sin(a) * s;
 
     if (cfg.format === 'escape') {
-      this.ball.r = 10;
+      this.ball.r = 9;
+      const spacing = (ESCAPE_OUTER - ESCAPE_INNER) / (ESCAPE_RINGS - 1);
       for (let i = 0; i < ESCAPE_RINGS; i++) {
-        const r = 70 + (i * (OUTER - 40 - 70)) / (ESCAPE_RINGS - 1);
+        const r = ESCAPE_INNER + i * spacing;
         this.rings.push({
           r,
+          thick: spacing,
           angle: rand(0, TAU),
-          speed: (0.7 + i * 0.06) * (i % 2 ? -1 : 1),
-          gapHalf: Math.max(0.34, 54 / r),
+          speed: (0.7 + i * 0.04) * (i % 2 ? -1 : 1),
+          gapHalf: Math.max(GAP_MIN, GAP_ARC / r),
           color: MUSIC_COLORS[i % MUSIC_COLORS.length],
           broken: false,
           flash: 0,
@@ -77,7 +86,7 @@ export class MusicGame {
       this.ball.r = cfg.format === 'grow' ? 14 : 18;
       this.ball.x = ARENA.cx + rand(-60, 60);
       this.ball.y = ARENA.cy - 120;
-      this.rings.push({ r: OUTER, angle: 0, speed: 0, gapHalf: 0, color: '', broken: false, flash: 0 });
+      this.rings.push({ r: OUTER, thick: 0, angle: 0, speed: 0, gapHalf: 0, color: '', broken: false, flash: 0 });
     }
   }
 
@@ -125,16 +134,14 @@ export class MusicGame {
     const nx = dx / d;
     const ny = dy / d;
 
-    // The ball only ever touches the innermost ring it's still inside.
-    const ring = this.rings.find((r) => !r.broken && r.r > d - b.r);
-    const wall = ring?.r ?? OUTER;
+    // The ball is always inside the innermost ring that's left; it bounces off that ring's inner edge.
+    const ring = this.rings.find((r) => !r.broken);
+    const wall = ring ? ring.r - ring.thick / 2 : OUTER;
 
-    if (ring && ring.gapHalf > 0) {
-      if (d > ring.r) {
-        this.breakRing(ring);
-        return;
-      }
-      if (this.inGap(ring, Math.atan2(dy, dx))) return;
+    // Slipping into the gap breaks the ring at once — the next ring is right behind it.
+    if (ring && ring.gapHalf > 0 && d + b.r > wall && this.inGap(ring, Math.atan2(dy, dx))) {
+      this.breakRing(ring);
+      return;
     }
 
     if (d + b.r > wall) {

@@ -131,14 +131,20 @@ function drawHeader(ctx: CanvasRenderingContext2D, m: MusicGame, ink: string, mu
   ctx.restore();
 }
 
-/** A colored ring with its opening cut out; it thickens briefly when the ball hits it. */
+/** A colored band with its opening cut out; it flashes briefly when the ball hits it. */
 function drawGapRing(ctx: CanvasRenderingContext2D, r: Ring) {
   ctx.save();
   ctx.strokeStyle = r.color;
-  ctx.lineWidth = 6 + r.flash * 4;
+  ctx.lineWidth = r.thick + 0.5;
   ctx.lineCap = 'butt';
   ctx.beginPath();
   ctx.arc(ARENA.cx, ARENA.cy, r.r, r.angle + r.gapHalf, r.angle - r.gapHalf + Math.PI * 2);
   ctx.stroke();
+  if (r.flash > 0) {
+    // Light up on a hit without growing into the neighboring rings.
+    ctx.globalAlpha = r.flash * 0.6;
+    ctx.strokeStyle = '#ffffff';
+    ctx.stroke();
+  }
   ctx.restore();
 }
