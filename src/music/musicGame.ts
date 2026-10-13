@@ -109,7 +109,7 @@ export class MusicGame {
       this.events = mergeEvents(cfg.song.events);
       this.syncGravity = Math.max(300, cfg.gravity);
       this.start = { x: ARENA.cx, y: 0 };
-      this.hits = planFall(this.events, this.start, this.syncGravity);
+      this.hits = planFall(this.events, this.start, this.syncGravity, this.ball.r);
       this.ball.x = this.start.x;
       this.ball.y = this.start.y;
       this.camY = this.start.y + 200;

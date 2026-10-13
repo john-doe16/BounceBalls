@@ -2,6 +2,7 @@ import { ARENA, VIEW } from '../game';
 import { FONT, THEMES, drawClock, drawPaused, type ThemeName } from '../render';
 import { INK } from '../weapons';
 import { MUSIC_COLORS, type MusicGame, type Ring } from './musicGame';
+import { PLATFORM_THICK, platformSegment } from './sync';
 
 export interface MusicRenderOpts {
   theme: ThemeName;
@@ -146,21 +147,18 @@ function drawPlatforms(ctx: CanvasRenderingContext2D, m: MusicGame, ink: string)
   const r = m.ball.r;
   ctx.save();
   ctx.lineCap = 'round';
-  ctx.lineWidth = 12;
+  ctx.lineWidth = PLATFORM_THICK;
   for (const h of m.hits) {
     if (h.p.y < top || h.p.y > bottom) continue;
     const age = m.time - h.t;
     const alpha = age < 0 ? 1 : Math.max(0, 1 - age / 3);
     if (alpha <= 0) continue;
-    const cx = h.p.x - h.n.x * (r + 6);
-    const cy = h.p.y - h.n.y * (r + 6);
-    const tx = -h.n.y * 42;
-    const ty = h.n.x * 42;
+    const seg = platformSegment(h.p, h.n, r, h.half);
     ctx.globalAlpha = alpha;
     ctx.strokeStyle = m.cfg.colorCycle ? MUSIC_COLORS[h.color % MUSIC_COLORS.length] : ink;
     ctx.beginPath();
-    ctx.moveTo(cx - tx, cy - ty);
-    ctx.lineTo(cx + tx, cy + ty);
+    ctx.moveTo(seg.a.x, seg.a.y);
+    ctx.lineTo(seg.b.x, seg.b.y);
     ctx.stroke();
     if (age >= 0 && age < 0.15) {
       ctx.globalAlpha = 1 - age / 0.15;
