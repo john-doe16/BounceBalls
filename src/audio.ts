@@ -180,14 +180,21 @@ export class Sfx {
   }
 
   /** Plays MIDI notes together as a chord in the given voice. */
-  chord(notes: number[], dur: number, vel = 0.8, voice: Voice = 'keys') {
+  /** `pan` places it left (-1) to right (1). */
+  chord(notes: number[], dur: number, vel = 0.8, voice: Voice = 'keys', pan = 0) {
     if (!this.enabled || !this.ctx || this.ctx.state !== 'running') return;
     if (voice === 'drums') {
       for (const n of notes) this.drum(n, vel);
       return;
     }
     const ctx = this.ctx;
-    const out = this.bus();
+    let out: AudioNode = this.bus();
+    if (pan) {
+      const p = ctx.createStereoPanner();
+      p.pan.value = pan;
+      p.connect(out);
+      out = p;
+    }
     const v = VOICES[voice];
     const t = ctx.currentTime;
     const ring = Math.min(Math.max(dur, 0.25), 1.6);

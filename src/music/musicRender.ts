@@ -125,6 +125,7 @@ function drawHeader(ctx: CanvasRenderingContext2D, m: MusicGame, ink: string, mu
 
 const FALL_TOP = 300;
 const FALL_BOTTOM = 1040;
+const LABEL_ROOM = 40;
 
 /**
  * Beat Sync platforms: short slanted bars, each where the ball meets it on a note. Upcoming ones
@@ -231,7 +232,8 @@ function drawLanes(ctx: CanvasRenderingContext2D, m: MusicGame, ink: string, div
   for (const lane of m.lanes) {
     ctx.save();
     ctx.beginPath();
-    ctx.rect(lane.x0, FALL_TOP, lane.x1 - lane.x0, FALL_BOTTOM - FALL_TOP);
+    // Start below the lane names so platforms never scroll over them.
+    ctx.rect(lane.x0, FALL_TOP + LABEL_ROOM, lane.x1 - lane.x0, FALL_BOTTOM - FALL_TOP - LABEL_ROOM);
     ctx.clip();
     zoomAround(ctx, (lane.x0 + lane.x1) / 2, mid, o.zoom);
     ctx.translate(0, mid - lane.camY);

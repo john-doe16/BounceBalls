@@ -59,6 +59,8 @@ const MIN_STEP = 72;
 /** Only nearby earlier platforms and flights can collide; older ones are far above. */
 const LOOKBACK = 60;
 const SAMPLES = 12;
+/** Preferred downward speed when reaching the next platform (px/s). */
+const MIN_ARRIVE = 320;
 
 /** Combines notes that start within MERGE of each other into single chords. */
 export function mergeEvents(events: NoteEvent[]): NoteEvent[] {
@@ -132,9 +134,11 @@ export function planFall(events: NoteEvent[], start: Vec, g: number, r: number, 
     // A new phrase: drop the ball in fresh rather than flying it through a long silence.
     let launch: Hit['launch'];
     if (i === 0 || gapBefore > restMax) {
-      // Drops in a little below where the last phrase ended, so the camera barely moves.
-      const x = i === 0 ? start.x : Math.min(xMax, Math.max(xMin, p.x));
-      const y = i === 0 ? start.y : p.y + 60;
+      // Drops back in just below where the last phrase's ball faded out, so the view never jumps.
+      const s = PHRASE_TAIL;
+      const faded = { x: p.x + v.x * s, y: p.y + v.y * s + 0.5 * g * s * s };
+      const x = i === 0 ? start.x : Math.min(xMax, Math.max(xMin, faded.x));
+      const y = i === 0 ? start.y : faded.y + 40;
       launch = { t: hitTime(i) - LEAD_IN, p: { x, y } };
       p = launch.p;
       v = { x: 0, y: 0 };
@@ -144,6 +148,8 @@ export function planFall(events: NoteEvent[], start: Vec, g: number, r: number, 
     const vIn = { x: v.x, y: v.y + g * T };
     const phraseEnds = gapAfter > restMax || i + 1 === events.length;
     const next = phraseEnds ? PHRASE_TAIL : Math.max(MERGE, gapAfter);
+    /** The gap after the next note: if it's short, the ball must not land slow. */
+    const afterNext = i + 2 < events.length ? events[i + 2].time - events[i + 1].time : next;
 
     const half = halfFor(Math.min(T, next), halfMax);
     // Fall faster through quick runs of notes so the hits don't stack up.
@@ -185,7 +191,13 @@ export function planFall(events: NoteEvent[], start: Vec, g: number, r: number, 
       const bounce = e < BOUNCE_MIN ? BOUNCE_MIN - e : e > BOUNCE_MAX ? e - BOUNCE_MAX : 0;
       const offScreen = land.x < xMin || land.x > xMax ? 1 : 0;
       const drift = (0.4 * Math.abs((land.y - q.y) / next - rate)) / rate;
-      const score = clashes * 100 + bounce * 6 + offScreen * 4 + drift + Math.random() * 0.15;
+      // Keep the ball arriving with real downward speed. A slow ball can only make tiny hops off
+      // its next platform, which leave it slow again: it gets stuck bouncing in one spot.
+      const arrive = vOut.y + g * next;
+      // That trap only bites when quick notes follow the landing; otherwise the ball can jump.
+      const quick = Math.min(1, Math.max(0, (0.5 - Math.min(next, afterNext)) / 0.25));
+      const sluggish = arrive < MIN_ARRIVE ? ((MIN_ARRIVE - arrive) / MIN_ARRIVE) * quick : 0;
+      const score = clashes * 100 + bounce * 6 + offScreen * 4 + drift + sluggish * 8 + Math.random() * 0.15;
       if (!best || score < best.score) best = { vOut, n, seg, path, score };
     }
 
@@ -244,4 +256,51 @@ function facing(vIn: Vec, vOut: Vec, margin = 0.2): Vec | null {
 
 function dist(a: Vec, b: Vec) {
   return Math.hypot(a.x - b.x, a.y - b.y);
+}
+
+/**
+ * Counts layout problems in a plan: platforms touching platforms, and flights clipping a platform
+ * they don't start or land on. Only nearby hits are compared, since the ball keeps falling.
+ */
+export function countClashes(hits: Hit[], g: number, r: number): number {
+  const segs = hits.map((h) => platformSegment(h.p, h.n, r, h.half));
+  const near = 40;
+  let bad = 0;
+  for (let i = 0; i < segs.length; i++) {
+    for (let j = i + 1; j < Math.min(segs.length, i + near); j++) {
+      if (segmentSegment(segs[i].a, segs[i].b, segs[j].a, segs[j].b).dist < PLATFORM_THICK) bad++;
+    }
+    if (i + 1 >= hits.length || hits[i + 1].launch) continue;
+    const h = hits[i];
+    const T = hits[i + 1].t - h.t;
+    for (let k = 1; k < 24; k++) {
+      const s = (k / 24) * T;
+      const pt = { x: h.p.x + h.vOut.x * s, y: h.p.y + h.vOut.y * s + 0.5 * g * s * s };
+      let hit = false;
+      for (let j = Math.max(0, i - near); j < Math.min(segs.length, i + near); j++) {
+        if (j === i || j === i + 1) continue;
+        if (dist(closestOnSegment(pt, segs[j].a, segs[j].b), pt) < r + PLATFORM_THICK / 2) hit = true;
+      }
+      if (hit) {
+        bad++;
+        break;
+      }
+    }
+  }
+  return bad;
+}
+
+/** Plans a few times (the planner makes random choices) and keeps the cleanest layout. */
+export function planFallBest(events: NoteEvent[], start: Vec, g: number, r: number, opts: PlanOptions = {}, tries = 5): Hit[] {
+  let best: Hit[] = [];
+  let bestBad = Infinity;
+  for (let k = 0; k < tries && bestBad > 0; k++) {
+    const plan = planFall(events, start, g, r, opts);
+    const bad = countClashes(plan, g, r);
+    if (bad < bestBad) {
+      best = plan;
+      bestBad = bad;
+    }
+  }
+  return best;
 }

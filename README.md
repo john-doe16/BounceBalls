@@ -53,7 +53,7 @@ Switch the panel to **Music**. Every bounce plays the next note (or chord) of a 
   - **Escape:** break out through the gaps of 10 spinning rings; each one shatters on the way out.
   - **Grow:** the ball grows on every bounce until it fills the ring.
   - **Beat Sync:** the ball falls through slanted platforms placed ahead of time, hitting each one exactly on the song's real rhythm (planned in `src/music/sync.ts`). Best with MIDI files, which carry real timing.
-    - **Ball per instrument** (on by default): each part gets its own ball, column, color and sound, e.g. melody, harmony, bass and drums. MIDI files are split by channel (up to 3 pitched parts plus drums, using each channel's General MIDI instrument to pick a lead, keys, pad or bass voice). Built-in songs split into melody and bass.
+    - **Ball per instrument** (on by default): each part gets its own ball, column, color and sound, e.g. melody, harmony, bass and drums. MIDI files are split by channel (up to 3 pitched parts plus drums, using each channel's General MIDI instrument to pick a lead, keys, pad or bass voice). Built-in songs are arranged in separate melody, harmony and bass parts. Each lane is mixed to its own level and panned left to right to match its column.
 - Battle and music never mix: wall bounces in battles are plain thuds.
 
 ## Controls

@@ -3,7 +3,7 @@ import { Fx } from '../fx';
 import { ARENA } from '../game';
 import { TAU, rand, type Vec } from '../math';
 import { noteName, type NoteEvent, type Part, type Song, type Voice } from './songs';
-import { PHRASE_TAIL, mergeEvents, planFall, type Hit } from './sync';
+import { PHRASE_TAIL, mergeEvents, planFallBest, type Hit } from './sync';
 
 export type MusicFormat = 'ring' | 'escape' | 'grow' | 'sync';
 
@@ -37,6 +37,9 @@ export interface Lane {
   alpha: number;
   /** Each lane is its own column with its own camera height, so every ball stays centered. */
   camY: number;
+  /** Stereo position (-1 left .. 1 right), matching the lane's column. */
+  pan: number;
+  gain: number;
   /** Column the lane is drawn in. */
   x0: number;
   x1: number;
@@ -68,6 +71,8 @@ const FINISH_HOLD = 3.5;
 const LANE_GRAVITY = 1.5;
 /** Lane colors by part name. */
 const LANE_COLORS: Record<string, string> = { MELODY: '#E63946', BASS: '#2F6FDE', HARMONY: '#2BA84A', 'HARMONY 2': '#7B4FD6', DRUMS: '#F4B400' };
+/** Part levels, so the melody doesn't drown out everything else. */
+const PART_GAIN: Record<string, number> = { MELODY: 0.75, HARMONY: 1.1, 'HARMONY 2': 1.1, BASS: 1.25, DRUMS: 0.9 };
 /** A part resting longer than this fades out and drops back in instead of plummeting through the silence. */
 const REST_MAX = 1.6;
 /** Escape gaps: at least this many radians wide, or this many px of arc on small rings. */
@@ -148,23 +153,33 @@ export class MusicGame {
     if (multi) this.syncGravity = g * LANE_GRAVITY;
     const r = this.ball.r * (n >= 3 ? 0.75 : n === 2 ? 0.9 : 1);
     const left = 60;
-    const w = (VIEW_W - 2 * left) / n;
+    // Busier parts get wider columns: sparse parts barely need the room, busy ones crowd without it.
+    const weights = parts.map((p) => Math.sqrt(p.events.length));
+    const total = weights.reduce((a, b) => a + b, 0);
+    const widths = weights.map((wt) => Math.max(0.2, wt / total));
+    const norm = widths.reduce((a, b) => a + b, 0);
+    const span = VIEW_W - 2 * left;
+    const edges = [left];
+    for (const wd of widths) edges.push(edges[edges.length - 1] + (wd / norm) * span);
 
     this.lanes = parts.map((part, i) => {
-      const x0 = left + i * w;
+      const x0 = edges[i];
+      const w = edges[i + 1] - x0;
       const start = { x: multi ? x0 + w / 2 : ARENA.cx, y: 0 };
       const opts = multi ? { xMin: x0 + r + 14, xMax: x0 + w - r - 14, halfMax: Math.min(42, w * 0.28), absolute: true, restMax: REST_MAX } : {};
       return {
         name: part.name,
         voice: part.voice,
         color: LANE_COLORS[part.name] ?? MUSIC_COLORS[i % MUSIC_COLORS.length],
-        hits: planFall(part.events, start, this.syncGravity, r, opts),
+        hits: planFallBest(part.events, start, this.syncGravity, r, opts),
         hitIndex: 0,
         ball: { x: start.x, y: start.y, vx: 0, vy: 0, r },
         trail: [],
         bounces: 0,
         alpha: 0,
         camY: 0,
+        pan: multi ? ((x0 + w / 2 - VIEW_W / 2) / (VIEW_W / 2 - left)) * 0.8 : 0,
+        gain: multi ? (PART_GAIN[part.name] ?? 1) : 1,
         x0: multi ? x0 : 0,
         x1: multi ? x0 + w : VIEW_W,
         fx: multi ? new Fx() : this.fx,
@@ -284,7 +299,7 @@ export class MusicGame {
         lane.bounces++;
         if (this.cfg.colorCycle && !this.multiLane) this.color = h.color;
         const color = this.multiLane ? lane.color : this.ballColor;
-        this.hitFx(h.p.x - h.n.x * b.r, h.p.y - h.n.y * b.r, undefined, this.playEvent(h.ev, lane.voice), color, lane.fx);
+        this.hitFx(h.p.x - h.n.x * b.r, h.p.y - h.n.y * b.r, undefined, this.playEvent(h.ev, lane.voice, lane.gain, lane.pan), color, lane.fx);
       }
       if (lane.hitIndex < lane.hits.length) active++;
 
@@ -302,9 +317,11 @@ export class MusicGame {
         p = prev.p;
         v = prev.vOut;
         t0 = prev.t;
-        // Between phrases (several lanes) the ball fades out instead of flying off forever.
+        // Between phrases (several lanes) the ball fades out, then waits where it faded
+        // instead of falling forever with the view chasing it.
         const phraseOver = this.multiLane && (!next || next.launch);
         lane.alpha = phraseOver ? Math.max(0, 1 - (this.time - t0) / PHRASE_TAIL) : 1;
+        if (phraseOver && this.time - t0 > PHRASE_TAIL) t0 = this.time - PHRASE_TAIL;
       } else {
         // Not started yet: wait, hidden, where it will drop in.
         p = next.launch!.p;
@@ -325,8 +342,12 @@ export class MusicGame {
   private followCamera() {
     this.camX = this.multiLane ? ARENA.cx : this.ball.x;
     this.camY = this.ball.y;
-    // A lane's view eases to the drop-in spot while its ball is between phrases.
-    for (const l of this.lanes) l.camY = l.alpha > 0 ? l.ball.y : l.camY + (l.ball.y - l.camY) * 0.1;
+    // While a lane's ball is hidden between phrases, its view eases to where it will drop back in.
+    for (const l of this.lanes) {
+      const next = l.hits[l.hitIndex];
+      const target = l.alpha > 0 || !next?.launch ? l.ball.y : next.launch.p.y;
+      l.camY = l.alpha > 0.99 ? l.ball.y : l.camY + (target - l.camY) * 0.06;
+    }
   }
 
   private bounce(x: number, y: number, ring: Ring | undefined) {
@@ -381,9 +402,9 @@ export class MusicGame {
     return this.playEvent(this.events[this.noteIndex % this.events.length]);
   }
 
-  private playEvent(ev: NoteEvent, voice: Voice = 'keys'): string {
+  private playEvent(ev: NoteEvent, voice: Voice = 'keys', gain = 1, pan = 0): string {
     this.noteIndex++;
-    this.sfx.chord(ev.notes, ev.dur, ev.vel, voice);
+    this.sfx.chord(ev.notes, ev.dur, ev.vel * gain, voice, pan);
     return voice === 'drums' ? '' : noteName(Math.max(...ev.notes));
   }
 
