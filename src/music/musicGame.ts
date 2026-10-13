@@ -215,8 +215,6 @@ export class MusicGame {
       this.fx.burst(x, y, ring.color, 2, 260, { angle: a, spread: 1.2, size: 5, life: 0.7, grav: 500 });
     }
     this.fx.ring(ARENA.cx, ARENA.cy, ring.color, ring.r + 30, 6, 0.4);
-    this.fx.shake(6);
-    this.hitstop = 0.04;
     // Only the song plays — no extra effect sound over it.
     this.playNext();
     if (this.ringsLeft === 0) this.finish('ESCAPED!');
@@ -237,6 +235,8 @@ export class MusicGame {
   private finish(title: string) {
     if (this.finished) return;
     this.finished = { title, at: this.time };
+    // Escaping ends quietly: the ball just keeps flying out of frame.
+    if (this.cfg.format === 'escape') return;
     this.fx.burst(this.ball.x, this.ball.y, this.ballColor, 60, 700, { size: 7, life: 1.1, grav: 300 });
     this.fx.ring(ARENA.cx, ARENA.cy, this.ballColor, OUTER + 40, 10, 0.6);
     this.fx.flash = 0.3;

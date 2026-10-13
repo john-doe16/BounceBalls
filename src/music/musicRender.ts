@@ -86,7 +86,7 @@ export function renderMusic(ctx: CanvasRenderingContext2D, m: MusicGame, o: Musi
   }
 
   drawClock(ctx, m.finished ? m.finished.at : m.time, t);
-  if (m.finished && m.finishedFor > 0.4) {
+  if (m.finished && m.finishedFor > 0.4 && m.cfg.format !== 'escape') {
     drawBand(ctx, m.ballColor, m.finished.title, `${m.bounces} BOUNCES  ·  ${m.finished.at.toFixed(1)}S`, m.finishedFor - 0.4);
   }
   if (o.paused) drawPaused(ctx, t);
