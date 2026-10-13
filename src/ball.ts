@@ -7,6 +7,8 @@ export class Ball {
   readonly id = nextId++;
   vx = 0;
   vy = 0;
+  /** Size multiplier for the ball and its weapon. */
+  scale = 1;
   r = 34;
   hp = 100;
   maxHp = 100;

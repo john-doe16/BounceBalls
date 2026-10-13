@@ -16,6 +16,7 @@ interface Settings {
   arena: ArenaShape;
   theme: ThemeName;
   gravity: number;
+  ballScale: number;
   speed: number;
   sound: boolean;
   trails: boolean;
@@ -36,6 +37,7 @@ const DEFAULTS: Settings = {
   arena: 'square',
   theme: initialTheme(),
   gravity: 700,
+  ballScale: 1,
   speed: 1,
   sound: true,
   trails: true,
@@ -71,7 +73,7 @@ let game = newGame();
 let paused = false;
 
 function newGame() {
-  return new Game({ fighters: [...settings.fighters], arena: settings.arena, gravity: settings.gravity }, sfx);
+  return new Game({ fighters: [...settings.fighters], arena: settings.arena, gravity: settings.gravity, ballScale: settings.ballScale }, sfx);
 }
 
 function restart() {
@@ -237,7 +239,7 @@ function syncTheme() {
 }
 syncTheme();
 
-function bindRange(id: 'gravity' | 'speed', format: (v: number) => string, onChange: (v: number) => void) {
+function bindRange(id: 'gravity' | 'speed' | 'ballScale', format: (v: number) => string, onChange: (v: number) => void) {
   const input = $<HTMLInputElement>(id);
   const out = $<HTMLOutputElement>(`${id}Out`);
   input.value = String(settings[id]);
@@ -252,6 +254,8 @@ function bindRange(id: 'gravity' | 'speed', format: (v: number) => string, onCha
 }
 bindRange('gravity', (v) => String(v), (v) => (game.cfg.gravity = v));
 bindRange('speed', (v) => `${v}x`, () => {});
+// Ball size changes spawn spacing, so it starts a fresh round.
+bindRange('ballScale', (v) => `${v.toFixed(1)}x`, restart);
 
 function bindCheck(id: 'sound' | 'trails' | 'autoRematch', onChange: (v: boolean) => void = () => {}) {
   const input = $<HTMLInputElement>(id);

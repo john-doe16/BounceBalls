@@ -8,6 +8,7 @@ export const VIEW = { w: 720, h: 1280 } as const;
 export const ARENA = { cx: 360, cy: 690, half: 330 } as const;
 /** Fixed physics step. Small so fast-spinning weapons don't tunnel through each other. */
 export const DT = 1 / 240;
+export const BALL_RADIUS = 34;
 
 export type ArenaShape = 'square' | 'circle';
 
@@ -15,6 +16,8 @@ export interface GameConfig {
   fighters: WeaponKind[];
   arena: ArenaShape;
   gravity: number;
+  /** Multiplies every ball's radius and weapon size. */
+  ballScale: number;
 }
 
 export interface Arrow {
@@ -73,6 +76,8 @@ export class Game {
 
       const p = this.freeSpot();
       const b = new Ball(name, color, createWeapon(kind), p.x, p.y);
+      b.scale = this.cfg.ballScale;
+      b.r = BALL_RADIUS * b.scale;
       const a = rand(0, TAU);
       const s = rand(320, 440);
       b.vx = Math.cos(a) * s;
@@ -83,7 +88,7 @@ export class Game {
   }
 
   private freeSpot(): Vec {
-    const r = 34;
+    const r = BALL_RADIUS * this.cfg.ballScale;
     for (let i = 0; i < 300; i++) {
       const x = rand(ARENA.cx - ARENA.half, ARENA.cx + ARENA.half);
       const y = rand(ARENA.cy - ARENA.half, ARENA.cy + ARENA.half);

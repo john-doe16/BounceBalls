@@ -1,5 +1,6 @@
 import type { Ball } from './ball';
 import { ARENA, VIEW, type Game } from './game';
+import { PX } from './pixel';
 import { INK, drawArrow } from './weapons';
 
 export type ThemeName = 'light' | 'dark';
@@ -43,8 +44,7 @@ export function render(ctx: CanvasRenderingContext2D, g: Game, o: RenderOpts) {
   drawArena(ctx, g, t);
   if (o.trails) for (const b of g.balls) if (b.alive) drawTrail(ctx, b);
   for (const a of g.arrows) {
-    const s = Math.hypot(a.vx, a.vy) || 1;
-    drawArrow(ctx, a.x - (a.vx / s) * 28, a.y - (a.vy / s) * 28, a.x, a.y, a.owner.color);
+    drawArrow(ctx, a.x, a.y, Math.atan2(a.vy, a.vx), a.owner.color, PX * a.owner.scale);
   }
   for (const b of g.balls) if (b.alive) drawBody(ctx, b);
   for (const b of g.balls) if (b.alive) b.weapon.draw(ctx, b);
@@ -211,7 +211,7 @@ function drawBody(ctx: CanvasRenderingContext2D, b: Ball) {
   ctx.beginPath();
   ctx.arc(b.x, b.y, b.r, 0, Math.PI * 2);
   ctx.fill();
-  ctx.lineWidth = 4;
+  ctx.lineWidth = 4 * Math.min(1.25, b.scale);
   ctx.strokeStyle = INK;
   ctx.stroke();
   if (b.flash > 0) {
@@ -234,9 +234,9 @@ function drawHpLabel(ctx: CanvasRenderingContext2D, b: Ball) {
   ctx.save();
   ctx.textAlign = 'center';
   ctx.textBaseline = 'middle';
-  ctx.font = `800 30px ${FONT}`;
+  ctx.font = `800 ${Math.round(30 * b.scale)}px ${FONT}`;
   ctx.lineJoin = 'round';
-  ctx.lineWidth = 5;
+  ctx.lineWidth = 5 * Math.min(1, b.scale);
   ctx.strokeStyle = INK;
   const s = String(Math.ceil(b.hp));
   ctx.strokeText(s, b.x, b.y + 2);

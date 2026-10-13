@@ -21,7 +21,7 @@ To regenerate the standalone file after making changes, run `npm run build:singl
 
 ## How it plays
 
-- Each ball carries a weapon that spins around it. A weapon touching an enemy ball deals damage.
+- Each ball carries a pixel-art weapon that spins around it, with a grip, gem or band in the fighter's color. A weapon touching an enemy ball deals damage.
 - **Parries:** when two weapons touch, they clang, throw sparks, and both reverse their spin direction.
 - **Every hit makes the attacker stronger**, and each weapon scales in its own way:
 
@@ -43,12 +43,13 @@ To regenerate the standalone file after making changes, run `npm run build:singl
 
 - **Drag a ball** to grab and fling it
 - **Space** to pause, **R** for a rematch
-- Panel: choose fighters, arena shape, gravity, simulation speed, sound, trails, and auto-rematch
+- Panel: choose fighters, arena shape, theme, gravity, ball size, simulation speed, sound, trails, and auto-rematch
 
 ## Code layout
 
 - `src/game.ts`: simulation (fixed 240 Hz step, collisions, parries, damage, hitstop, slow-mo)
 - `src/weapons.ts`: weapon classes. Each defines its hitboxes (capsules), scaling, and drawing
+- `src/pixel.ts`: pixel-art sprites (character grids) and the sprite renderer
 - `src/render.ts`: canvas rendering (720×1280 vertical layout, Shorts-ready)
 - `src/fx.ts`: particles, floating text, rings, shake, flash
 - `src/audio.ts`: Web Audio sound synthesis
@@ -56,4 +57,4 @@ To regenerate the standalone file after making changes, run `npm run build:singl
 
 ### Adding a weapon
 
-Subclass `Weapon` in `src/weapons.ts`, implement `capsules()` (hitboxes), `onHit()` (scaling), `stats()` and `draw()`, then add it to `WEAPON_INFO` and `createWeapon()`.
+Draw its sprite as a character grid in `src/pixel.ts` (`c` is replaced with the fighter's color). Then subclass `Weapon` in `src/weapons.ts`, implement `capsules()` (hitboxes, matching the sprite), `onHit()` (scaling), `stats()` and `draw()`, and add it to `WEAPON_INFO` and `createWeapon()`.

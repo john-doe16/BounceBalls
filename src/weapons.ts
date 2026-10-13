@@ -1,4 +1,5 @@
 import { TAU, fmt, type Capsule, type Vec } from './math';
+import { ARROW, BOW, COLLAR, DAGGER, HAMMER_HEAD, PX, SCYTHE_BLADE, SPEAR_HEAD, SWORD, drawOnAxis, drawShaft, drawSprite, spriteSize } from './pixel';
 import type { Ball } from './ball';
 import type { Game } from './game';
 
@@ -64,20 +65,8 @@ export abstract class Weapon {
 
 // ---------- drawing helpers ----------
 
-/** Outline color shared with the balls — gives everything a flat sticker look. */
-export const INK = '#111111';
-const STEEL = '#E4E7EC';
-const WOOD = '#7A4E2D';
-
-function bladePath(ctx: CanvasRenderingContext2D, x0: number, x1: number, hw: number, tip: number) {
-  ctx.beginPath();
-  ctx.moveTo(x0, -hw);
-  ctx.lineTo(x1 - tip, -hw);
-  ctx.lineTo(x1, 0);
-  ctx.lineTo(x1 - tip, hw);
-  ctx.lineTo(x0, hw);
-  ctx.closePath();
-}
+/** Outline color shared with the balls and sprites. */
+export const INK = '#141414';
 
 /** Motion-blur arc trailing behind a spinning weapon; longer the faster it spins. */
 function swoosh(ctx: CanvasRenderingContext2D, w: Weapon, b: Ball, reach: number, width: number) {
@@ -100,14 +89,15 @@ function swoosh(ctx: CanvasRenderingContext2D, w: Weapon, b: Ball, reach: number
 }
 
 // ---------- weapons ----------
+// All sizes are for a scale-1 ball and get multiplied by `b.scale` (u).
 
 export class Sword extends Weapon {
   readonly kind = 'sword';
-  length = 84;
   spin = 4.2;
 
   capsules(b: Ball): Capsule[] {
-    return [{ a: this.at(b, b.r + 6), b: this.at(b, b.r + this.length), r: 6 }];
+    const u = b.scale;
+    return [{ a: this.at(b, b.r + 20 * u), b: this.at(b, b.r + 80 * u), r: 7 * u }];
   }
 
   onHit() {
@@ -120,45 +110,27 @@ export class Sword extends Weapon {
   }
 
   draw(ctx: CanvasRenderingContext2D, b: Ball) {
-    const r = b.r;
-    const L = this.length;
-    swoosh(ctx, this, b, r + L - 8, 12);
+    const u = b.scale;
+    swoosh(ctx, this, b, b.r + 70 * u, 12 * u);
     ctx.save();
     this.local(ctx, b);
-    ctx.fillStyle = WOOD;
-    ctx.fillRect(r - 8, -3.5, 18, 7);
-    ctx.fillStyle = '#C9972E';
-    ctx.beginPath();
-    ctx.roundRect(r + 8, -14, 6, 28, 3);
-    ctx.fill();
-    bladePath(ctx, r + 14, r + L, 6, 16);
-    ctx.fillStyle = STEEL;
-    ctx.fill();
-    ctx.strokeStyle = INK;
-    ctx.lineWidth = 2;
-    ctx.stroke();
-    ctx.strokeStyle = 'rgba(0,0,0,0.15)';
-    ctx.lineWidth = 1.2;
-    ctx.beginPath();
-    ctx.moveTo(r + 18, 0);
-    ctx.lineTo(r + L - 18, 0);
-    ctx.stroke();
+    drawOnAxis(ctx, SWORD, b.color, b.r - 14 * u, PX * u);
     ctx.restore();
   }
 }
 
 export class Dagger extends Weapon {
   readonly kind = 'dagger';
-  length = 50;
   spin = 9;
   hitCooldown = 0.1;
 
   capsules(b: Ball): Capsule[] {
-    return [{ a: this.at(b, b.r + 4), b: this.at(b, b.r + this.length), r: 5 }];
+    const u = b.scale;
+    return [{ a: this.at(b, b.r + 14 * u), b: this.at(b, b.r + 51 * u), r: 6 * u }];
   }
 
   onHit() {
-    this.spin = Math.min(this.spin + 2, 48);
+    this.spin = Math.min(this.spin + 1.6, 44);
     this.damage = Math.round((this.damage + 0.1) * 10) / 10;
     return 'SPIN UP';
   }
@@ -168,23 +140,11 @@ export class Dagger extends Weapon {
   }
 
   draw(ctx: CanvasRenderingContext2D, b: Ball) {
-    const r = b.r;
-    const L = this.length;
-    swoosh(ctx, this, b, r + L - 6, 10);
+    const u = b.scale;
+    swoosh(ctx, this, b, b.r + 46 * u, 10 * u);
     ctx.save();
     this.local(ctx, b);
-    ctx.fillStyle = INK;
-    ctx.fillRect(r - 6, -3, 14, 6);
-    ctx.fillStyle = '#9097A1';
-    ctx.beginPath();
-    ctx.roundRect(r + 7, -8, 4, 16, 2);
-    ctx.fill();
-    bladePath(ctx, r + 11, r + L, 4.5, 12);
-    ctx.fillStyle = STEEL;
-    ctx.fill();
-    ctx.strokeStyle = INK;
-    ctx.lineWidth = 2;
-    ctx.stroke();
+    drawOnAxis(ctx, DAGGER, b.color, b.r - 10 * u, PX * u);
     ctx.restore();
   }
 }
@@ -195,7 +155,8 @@ export class Spear extends Weapon {
   spin = 3.2;
 
   capsules(b: Ball): Capsule[] {
-    return [{ a: this.at(b, b.r + 4), b: this.at(b, b.r + this.length), r: 4.5 }];
+    const u = b.scale;
+    return [{ a: this.at(b, b.r + 4 * u), b: this.at(b, b.r + this.length * u), r: 5 * u }];
   }
 
   onHit() {
@@ -209,37 +170,15 @@ export class Spear extends Weapon {
   }
 
   draw(ctx: CanvasRenderingContext2D, b: Ball) {
-    const r = b.r;
-    const L = this.length;
-    swoosh(ctx, this, b, r + L - 10, 8);
+    const u = b.scale;
+    const P = PX * u;
+    const tip = b.r + this.length * u;
+    const headX = tip - spriteSize(SPEAR_HEAD).w * P;
+    swoosh(ctx, this, b, tip - 10 * u, 8 * u);
     ctx.save();
     this.local(ctx, b);
-    ctx.strokeStyle = WOOD;
-    ctx.lineWidth = 5;
-    ctx.lineCap = 'round';
-    ctx.beginPath();
-    ctx.moveTo(r - 6, 0);
-    ctx.lineTo(r + L - 22, 0);
-    ctx.stroke();
-    ctx.fillStyle = b.color;
-    ctx.beginPath();
-    ctx.moveTo(r + L - 26, 0);
-    ctx.lineTo(r + L - 40, -8);
-    ctx.lineTo(r + L - 36, 0);
-    ctx.lineTo(r + L - 40, 8);
-    ctx.closePath();
-    ctx.fill();
-    ctx.beginPath();
-    ctx.moveTo(r + L - 26, -7);
-    ctx.lineTo(r + L, 0);
-    ctx.lineTo(r + L - 26, 7);
-    ctx.lineTo(r + L - 21, 0);
-    ctx.closePath();
-    ctx.fillStyle = STEEL;
-    ctx.fill();
-    ctx.strokeStyle = INK;
-    ctx.lineWidth = 2;
-    ctx.stroke();
+    drawShaft(ctx, b.r - 6 * u, headX + 2 * P, P);
+    drawOnAxis(ctx, SPEAR_HEAD, b.color, headX, P);
     ctx.restore();
   }
 }
@@ -247,31 +186,31 @@ export class Spear extends Weapon {
 export class Hammer extends Weapon {
   readonly kind = 'hammer';
   handle = 58;
-  growth = 0;
+  headScale = 0.8;
   spin = 2.6;
-  damage = 3;
+  damage = 2.5;
   knockback = 2.2;
   hitCooldown = 0.4;
 
-  private get hw() {
-    return 17 + this.growth;
-  }
-
-  private get depth() {
-    return 22 + this.growth * 0.6;
+  private head(b: Ball) {
+    const { w, h } = spriteSize(HAMMER_HEAD);
+    const s = PX * b.scale * this.headScale;
+    return { x: b.r + this.handle * b.scale, w: w * s, h: h * s, s };
   }
 
   capsules(b: Ball): Capsule[] {
-    const mid = b.r + this.handle + this.depth / 2;
+    const hd = this.head(b);
+    const mid = hd.x + hd.w / 2;
+    const reach = hd.h / 2 - hd.w / 2;
     return [
-      { a: this.at(b, b.r), b: this.at(b, b.r + this.handle), r: 4 },
-      { a: this.at(b, mid, -this.hw + this.depth / 2), b: this.at(b, mid, this.hw - this.depth / 2), r: this.depth / 2 },
+      { a: this.at(b, b.r), b: this.at(b, hd.x), r: 4.5 * b.scale },
+      { a: this.at(b, mid, -reach), b: this.at(b, mid, reach), r: hd.w / 2 },
     ];
   }
 
   onHit() {
     this.damage += 0.5;
-    this.growth = Math.min(this.growth + 2.5, 30);
+    this.headScale = Math.min(this.headScale + 0.1, 1.8);
     this.knockback = Math.min(this.knockback + 0.1, 3.5);
     return 'BIGGER';
   }
@@ -281,29 +220,13 @@ export class Hammer extends Weapon {
   }
 
   draw(ctx: CanvasRenderingContext2D, b: Ball) {
-    const r = b.r;
-    const hw = this.hw;
-    const d = this.depth;
-    swoosh(ctx, this, b, r + this.handle + d / 2, Math.min(hw * 1.4, 34));
+    const u = b.scale;
+    const hd = this.head(b);
+    swoosh(ctx, this, b, hd.x + hd.w / 2, Math.min(hd.h * 0.8, 40 * u));
     ctx.save();
     this.local(ctx, b);
-    ctx.strokeStyle = WOOD;
-    ctx.lineWidth = 7;
-    ctx.lineCap = 'round';
-    ctx.beginPath();
-    ctx.moveTo(r - 6, 0);
-    ctx.lineTo(r + this.handle, 0);
-    ctx.stroke();
-    ctx.fillStyle = '#9097A1';
-    ctx.beginPath();
-    ctx.roundRect(r + this.handle, -hw, d, hw * 2, 5);
-    ctx.fill();
-    ctx.strokeStyle = INK;
-    ctx.lineWidth = 2;
-    ctx.stroke();
-    ctx.fillStyle = b.color;
-    ctx.fillRect(r + this.handle + d * 0.2, -hw, 3, hw * 2);
-    ctx.fillRect(r + this.handle + d * 0.8 - 3, -hw, 3, hw * 2);
+    drawShaft(ctx, b.r - 6 * u, hd.x + 2 * u, PX * u);
+    drawSprite(ctx, HAMMER_HEAD, b.color, hd.x, -hd.h / 2, hd.s);
     ctx.restore();
   }
 }
@@ -318,17 +241,22 @@ export class Scythe extends Weapon {
   private side = this.dir;
 
   capsules(b: Ball): Capsule[] {
-    const tip = b.r + this.handle;
+    const P = PX * b.scale;
+    const tip = b.r + this.handle * b.scale;
+    const s = this.side;
+    // Two segments follow the blade's curve (see SCYTHE_BLADE).
+    const bend = this.at(b, tip - 8 * P, s * 3.5 * P);
     return [
-      { a: this.at(b, b.r), b: this.at(b, tip), r: 4 },
-      { a: this.at(b, tip, 0), b: this.at(b, tip - 24, this.side * 50), r: 6 },
+      { a: this.at(b, b.r), b: this.at(b, tip), r: 4.5 * b.scale },
+      { a: this.at(b, tip - P, 0), b: bend, r: 1.8 * P },
+      { a: bend, b: this.at(b, tip - 13 * P, s * 11.5 * P), r: 1.8 * P },
     ];
   }
 
   onHit(g: Game, self: Ball) {
     g.heal(self, this.lifesteal);
-    this.damage += 0.25;
-    this.lifesteal = Math.min(this.lifesteal + 0.5, 4);
+    this.damage += 0.4;
+    this.lifesteal = Math.min(this.lifesteal + 0.5, 5);
   }
 
   stats() {
@@ -336,29 +264,15 @@ export class Scythe extends Weapon {
   }
 
   draw(ctx: CanvasRenderingContext2D, b: Ball) {
-    const r = b.r;
-    const tip = r + this.handle;
-    const s = this.side;
-    swoosh(ctx, this, b, tip - 8, 14);
+    const u = b.scale;
+    const P = PX * u;
+    const tip = b.r + this.handle * u;
+    swoosh(ctx, this, b, tip - 12 * u, 14 * u);
     ctx.save();
     this.local(ctx, b);
-    ctx.strokeStyle = WOOD;
-    ctx.lineWidth = 5;
-    ctx.lineCap = 'round';
-    ctx.beginPath();
-    ctx.moveTo(r - 6, 0);
-    ctx.lineTo(tip + 4, 0);
-    ctx.stroke();
-    ctx.beginPath();
-    ctx.moveTo(tip + 3, -s * 4);
-    ctx.quadraticCurveTo(tip + 14, s * 30, tip - 28, s * 56);
-    ctx.quadraticCurveTo(tip - 2, s * 28, tip - 6, s * 2);
-    ctx.closePath();
-    ctx.fillStyle = STEEL;
-    ctx.fill();
-    ctx.strokeStyle = INK;
-    ctx.lineWidth = 2;
-    ctx.stroke();
+    drawShaft(ctx, b.r - 6 * u, tip, P);
+    drawSprite(ctx, SCYTHE_BLADE, b.color, tip - 14 * P, -1.5 * P, P, this.side < 0);
+    drawOnAxis(ctx, COLLAR, b.color, tip - 6 * P, P);
     ctx.restore();
   }
 }
@@ -372,7 +286,9 @@ export class Bow extends Weapon {
   private reload = 0.5;
 
   capsules(b: Ball): Capsule[] {
-    return [{ a: this.at(b, b.r + 16, -28), b: this.at(b, b.r + 16, 28), r: 4 }];
+    const P = PX * b.scale;
+    const x = b.r + 2 * b.scale + 3 * P;
+    return [{ a: this.at(b, x, -10 * P), b: this.at(b, x, 10 * P), r: 1.8 * P }];
   }
 
   update(g: Game, b: Ball, dt: number) {
@@ -383,7 +299,7 @@ export class Bow extends Weapon {
       const spread = 0.12;
       for (let i = 0; i < this.arrows; i++) {
         const a = this.angle + (i - (this.arrows - 1) / 2) * spread;
-        const p = this.at(b, b.r + 18);
+        const p = this.at(b, b.r + 18 * b.scale);
         g.arrows.push({ x: p.x, y: p.y, vx: Math.cos(a) * 1050, vy: Math.sin(a) * 1050, owner: b, dmg: this.damage, dead: false });
       }
       g.sfx.shoot();
@@ -400,28 +316,22 @@ export class Bow extends Weapon {
   }
 
   draw(ctx: CanvasRenderingContext2D, b: Ball) {
-    const r = b.r;
-    const R = 30;
-    const A = 1.15;
-    const ex = r + 2 + R * Math.cos(A);
-    const ey = R * Math.sin(A);
-    const pull = 12 * Math.max(0, 1 - this.reload / this.interval);
+    const u = b.scale;
+    const P = PX * u;
+    const x0 = b.r + 2 * u;
+    const pull = 4 * P * Math.max(0, 1 - this.reload / this.interval);
+    const sx = x0 + P;
     ctx.save();
     this.local(ctx, b);
     ctx.strokeStyle = INK;
-    ctx.lineWidth = 1.5;
+    ctx.lineWidth = 0.8 * P;
     ctx.beginPath();
-    ctx.moveTo(ex, -ey);
-    ctx.lineTo(ex - pull, 0);
-    ctx.lineTo(ex, ey);
+    ctx.moveTo(sx, -10 * P);
+    ctx.lineTo(sx - pull, 0);
+    ctx.lineTo(sx, 10 * P);
     ctx.stroke();
-    if (this.reload < this.interval * 0.8) drawArrow(ctx, ex - pull, 0, ex - pull + 34, 0, b.color);
-    ctx.strokeStyle = WOOD;
-    ctx.lineWidth = 5;
-    ctx.lineCap = 'round';
-    ctx.beginPath();
-    ctx.arc(r + 2, 0, R, -A, A);
-    ctx.stroke();
+    if (this.reload < this.interval * 0.8) drawArrow(ctx, sx - pull + spriteSize(ARROW).w * P, 0, 0, b.color, P);
+    drawOnAxis(ctx, BOW, b.color, x0, P);
     ctx.restore();
   }
 }
@@ -447,62 +357,39 @@ export class Unarmed extends Weapon {
   }
 
   draw(ctx: CanvasRenderingContext2D, b: Ball) {
+    const u = b.scale;
     const k = Math.min(1, b.speed / 2000);
     const sp = b.speed || 1;
     const ux = b.vx / sp;
     const uy = b.vy / sp;
     ctx.save();
     ctx.strokeStyle = b.color;
-    ctx.lineCap = 'round';
     ctx.globalAlpha = 0.3 + 0.6 * k;
-    ctx.lineWidth = 3 + 3 * k;
+    ctx.lineWidth = (3 + 3 * k) * u;
     ctx.beginPath();
-    ctx.arc(b.x, b.y, b.r + 6, 0, TAU);
+    ctx.arc(b.x, b.y, b.r + 6 * u, 0, TAU);
     ctx.stroke();
-    ctx.lineWidth = 3;
+    ctx.lineWidth = PX * u;
     for (const off of [-0.6, 0, 0.6]) {
       const px = -uy * b.r * off;
       const py = ux * b.r * off;
-      const len = 20 + 70 * k;
+      const len = (20 + 70 * k) * u;
+      const start = b.r + 8 * u;
       ctx.beginPath();
-      ctx.moveTo(b.x + px - ux * (b.r + 8), b.y + py - uy * (b.r + 8));
-      ctx.lineTo(b.x + px - ux * (b.r + 8 + len), b.y + py - uy * (b.r + 8 + len));
+      ctx.moveTo(b.x + px - ux * start, b.y + py - uy * start);
+      ctx.lineTo(b.x + px - ux * (start + len), b.y + py - uy * (start + len));
       ctx.stroke();
     }
     ctx.restore();
   }
 }
 
-export function drawArrow(ctx: CanvasRenderingContext2D, x0: number, y0: number, x1: number, y1: number, color: string) {
-  const a = Math.atan2(y1 - y0, x1 - x0);
+/** Draws a pixel arrow with its tip at (x, y), pointing along `angle`. */
+export function drawArrow(ctx: CanvasRenderingContext2D, x: number, y: number, angle: number, color: string, scale = PX) {
   ctx.save();
-  ctx.strokeStyle = WOOD;
-  ctx.lineWidth = 2.5;
-  ctx.beginPath();
-  ctx.moveTo(x0, y0);
-  ctx.lineTo(x1, y1);
-  ctx.stroke();
-  ctx.translate(x1, y1);
-  ctx.rotate(a);
-  ctx.fillStyle = '#9097A1';
-  ctx.beginPath();
-  ctx.moveTo(6, 0);
-  ctx.lineTo(-5, -4.5);
-  ctx.lineTo(-5, 4.5);
-  ctx.closePath();
-  ctx.fill();
-  ctx.restore();
-  ctx.save();
-  ctx.translate(x0, y0);
-  ctx.rotate(a);
-  ctx.fillStyle = color;
-  ctx.beginPath();
-  ctx.moveTo(8, 0);
-  ctx.lineTo(-2, -5);
-  ctx.lineTo(1, 0);
-  ctx.lineTo(-2, 5);
-  ctx.closePath();
-  ctx.fill();
+  ctx.translate(x, y);
+  ctx.rotate(angle);
+  drawOnAxis(ctx, ARROW, color, -spriteSize(ARROW).w * scale, scale);
   ctx.restore();
 }
 

@@ -1,4 +1,5 @@
 import { rand, type Vec } from './math';
+import { PX } from './pixel';
 
 interface Particle {
   x: number;
@@ -137,20 +138,12 @@ export class Fx {
     for (const p of this.particles) {
       const k = p.life / p.max;
       ctx.globalAlpha = Math.min(1, k * 1.5);
-      if (p.spark) {
-        ctx.strokeStyle = this.c(p.color);
-        ctx.lineWidth = p.size * 0.6;
-        ctx.lineCap = 'round';
-        ctx.beginPath();
-        ctx.moveTo(p.x, p.y);
-        ctx.lineTo(p.x - p.vx * 0.035, p.y - p.vy * 0.035);
-        ctx.stroke();
-      } else {
-        ctx.fillStyle = this.c(p.color);
-        ctx.beginPath();
-        ctx.arc(p.x, p.y, p.size * (0.3 + 0.7 * k), 0, Math.PI * 2);
-        ctx.fill();
-      }
+      // Square particles snapped to the sprite pixel grid, so they match the pixel-art weapons.
+      ctx.fillStyle = this.c(p.color);
+      const size = Math.max(PX, Math.round((p.spark ? p.size * 0.8 : p.size * (0.5 + 0.9 * k)) / PX) * PX);
+      const snap = (v: number) => Math.round(v / PX) * PX;
+      ctx.fillRect(snap(p.x) - size / 2, snap(p.y) - size / 2, size, size);
+      if (p.spark) ctx.fillRect(snap(p.x - p.vx * 0.02) - size / 2, snap(p.y - p.vy * 0.02) - size / 2, size, size);
     }
 
     ctx.textAlign = 'center';
