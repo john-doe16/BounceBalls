@@ -52,6 +52,7 @@ Switch the panel to **Music**. Every bounce plays the next note (or chord) of a 
   - **Ring:** one ball in one ring, looping forever. Turn on **Shrink ring** to have it close in until the ball is squeezed.
   - **Escape:** break out through the gaps of 10 spinning rings; each one shatters on the way out.
   - **Grow:** the ball grows on every bounce until it fills the ring.
+  - **Beat Sync:** the ball falls through slanted platforms placed ahead of time, hitting each one exactly on the song's real rhythm (planned in `src/music/sync.ts`). Best with MIDI files, which carry real timing.
 - Battle and music never mix: wall bounces in battles are plain thuds.
 
 ## Controls

@@ -2,9 +2,10 @@ import type { Sfx } from '../audio';
 import { Fx } from '../fx';
 import { ARENA } from '../game';
 import { TAU, rand, type Vec } from '../math';
-import { noteName, type Song } from './songs';
+import { noteName, type NoteEvent, type Song } from './songs';
+import { mergeEvents, planFall, type Hit } from './sync';
 
-export type MusicFormat = 'ring' | 'escape' | 'grow';
+export type MusicFormat = 'ring' | 'escape' | 'grow' | 'sync';
 
 export interface MusicConfig {
   format: MusicFormat;
@@ -57,14 +58,23 @@ export class MusicGame {
   trail: Vec[] = [];
   /** Set when the run ends: the last ring has shattered and the ball is flying away. */
   finished: { at: number } | null = null;
+  /** The notes this run plays through (merged into hits for Beat Sync). */
+  events: NoteEvent[];
   private acc = 0;
   private hitstop = 0;
   private lastNote = -1;
+  /** Beat Sync: the planned platform hits, how many have happened, and the camera height. */
+  hits: Hit[] = [];
+  hitIndex = 0;
+  camY = 0;
+  private syncGravity = 0;
+  private start: Vec = { x: 0, y: 0 };
 
   constructor(
     public cfg: MusicConfig,
     public sfx: Sfx,
   ) {
+    this.events = cfg.song.events;
     const a = rand(0, TAU);
     const s = rand(380, 520);
     this.ball.vx = Math.cos(a) * s;
@@ -91,6 +101,18 @@ export class MusicGame {
       this.ball.x = ARENA.cx + rand(-60, 60);
       this.ball.y = ARENA.cy - 120;
       this.rings.push({ r: OUTER, thick: 0, angle: 0, speed: 0, gapHalf: 0, color: 'ink', broken: false, flash: 0 });
+    }
+
+    if (cfg.format === 'sync') {
+      // No ring: an open drop with platforms planned for every note.
+      this.rings = [];
+      this.events = mergeEvents(cfg.song.events);
+      this.syncGravity = Math.max(300, cfg.gravity);
+      this.start = { x: ARENA.cx, y: 0 };
+      this.hits = planFall(this.events, this.start, this.syncGravity);
+      this.ball.x = this.start.x;
+      this.ball.y = this.start.y;
+      this.camY = this.start.y + 200;
     }
   }
 
@@ -126,6 +148,11 @@ export class MusicGame {
     this.time += dt;
     const b = this.ball;
     for (const r of this.rings) r.angle += r.speed * dt;
+    if (this.cfg.format === 'sync') {
+      this.stepSync();
+      this.followCamera(dt);
+      return;
+    }
 
     b.vy += this.cfg.gravity * dt;
     b.x += b.vx * dt;
@@ -175,16 +202,36 @@ export class MusicGame {
     return Math.abs(off) < ring.gapHalf - Math.asin(Math.min(1, this.ball.r / ring.r)) * 0.8;
   }
 
-  private bounce(x: number, y: number, ring: Ring | undefined) {
-    this.bounces++;
+  /** Beat Sync: follow the planned fall, playing each note as the ball meets its platform. */
+  private stepSync() {
+    const g = this.syncGravity;
     const b = this.ball;
-    const note = this.playNext();
-    if (ring) ring.flash = 1;
-    if (this.cfg.colorCycle) this.color++;
+    while (this.hitIndex < this.hits.length && this.time >= this.hits[this.hitIndex].t) {
+      const h = this.hits[this.hitIndex++];
+      const contact = { x: h.p.x - h.n.x * b.r, y: h.p.y - h.n.y * b.r };
+      if (this.cfg.colorCycle) this.color = h.color;
+      this.hitFx(contact.x, contact.y, undefined, this.playEvent(h.ev));
+      if (this.hitIndex === this.hits.length) this.finished = { at: this.time };
+    }
+    // Position comes straight from the plan, so it can never drift off the beat.
+    const from = this.hits[this.hitIndex - 1];
+    const p = from ? from.p : this.start;
+    const v = from ? from.vOut : { x: 0, y: 0 };
+    const u = this.time - (from ? from.t : 0);
+    b.x = p.x + v.x * u;
+    b.y = p.y + v.y * u + 0.5 * g * u * u;
+    b.vx = v.x;
+    b.vy = v.y + g * u;
+  }
 
-    this.fx.ring(x, y, this.ballColor, 40, 4, 0.35);
-    this.fx.burst(x, y, this.ballColor, 8, 220, { size: 4, life: 0.4, grav: 0 });
-    if (note && this.cfg.showNotes) this.fx.text(x - (x - ARENA.cx) * 0.12, y - (y - ARENA.cy) * 0.12, note, 'ink', 22);
+  /** Smoothly keeps the ball a little above the middle of the view. */
+  private followCamera(dt: number) {
+    this.camY += (this.ball.y + 120 - this.camY) * Math.min(1, dt * 5);
+  }
+
+  private bounce(x: number, y: number, ring: Ring | undefined) {
+    const b = this.ball;
+    this.hitFx(x, y, ring, this.playNext());
 
     if (this.cfg.format === 'grow' && !this.finished) {
       b.r = Math.min(b.r + 2.7, OUTER - 8);
@@ -197,7 +244,17 @@ export class MusicGame {
     }
   }
 
-  private breakRing(ring: Ring) {
+  /** Ripple, particles, color change and note name where the ball meets the wall. */
+  private hitFx(x: number, y: number, ring: Ring | undefined, note: string | null) {
+    this.bounces++;
+    if (ring) ring.flash = 1;
+    if (this.cfg.colorCycle && this.cfg.format !== 'sync') this.color++;
+    this.fx.ring(x, y, this.ballColor, 40, 4, 0.35);
+    this.fx.burst(x, y, this.ballColor, 8, 220, { size: 4, life: 0.4, grav: 0 });
+    if (note && this.cfg.showNotes) this.fx.text(x - (x - ARENA.cx) * 0.12, y - (y - ARENA.cy) * 0.12, note, 'ink', 22);
+  }
+
+  private breakRing(ring: Ring, withNote = true) {
     ring.broken = true;
     const pts = 48;
     for (let i = 0; i < pts; i++) {
@@ -211,7 +268,7 @@ export class MusicGame {
     }
     this.fx.ring(ARENA.cx, ARENA.cy, ring.color, ring.r + 30, 6, 0.4);
     // Only the song plays — no extra effect sound over it.
-    this.playNext();
+    if (withNote) this.playNext();
     if (this.ringsLeft === 0) this.finished = { at: this.time };
   }
 
@@ -220,8 +277,10 @@ export class MusicGame {
     // Rapid-fire bounces (a nearly-full ball) shouldn't machine-gun the synth.
     if (this.time - this.lastNote < 0.045) return null;
     this.lastNote = this.time;
-    const events = this.cfg.song.events;
-    const ev = events[this.noteIndex % events.length];
+    return this.playEvent(this.events[this.noteIndex % this.events.length]);
+  }
+
+  private playEvent(ev: NoteEvent): string {
     this.noteIndex++;
     this.sfx.chord(ev.notes, ev.dur, ev.vel);
     return noteName(Math.max(...ev.notes));

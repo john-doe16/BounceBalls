@@ -2,6 +2,8 @@
 // so the ball's rhythm *is* the song's rhythm. Durations only shape how long a note rings.
 
 export interface NoteEvent {
+  /** When the chord starts in the original song, in seconds. Beat Sync uses it; other formats ignore it. */
+  time: number;
   /** MIDI note numbers sounding together. */
   notes: number[];
   /** Seconds the chord rings for. */
@@ -37,12 +39,16 @@ export function noteName(n: number) {
  * optional `:beats` length, e.g. "E5 D#5 A4+A2:2".
  */
 function score(id: string, name: string, text: string): Song {
+  let time = 0;
   const events = text
     .trim()
     .split(/\s+/)
     .map((tok) => {
       const [chord, beats] = tok.split(':');
-      return { notes: chord.split('+').map(noteNumber), dur: (beats ? Number(beats) : 1) * BEAT, vel: 0.8 };
+      const dur = (beats ? Number(beats) : 1) * BEAT;
+      const ev = { time, notes: chord.split('+').map(noteNumber), dur, vel: 0.8 };
+      time += dur;
+      return ev;
     });
   return { id, name, events };
 }

@@ -1,7 +1,7 @@
 import { ARENA, VIEW } from '../game';
 import { FONT, THEMES, drawClock, drawPaused, type ThemeName } from '../render';
 import { INK } from '../weapons';
-import type { MusicGame, Ring } from './musicGame';
+import { MUSIC_COLORS, type MusicGame, type Ring } from './musicGame';
 
 export interface MusicRenderOpts {
   theme: ThemeName;
@@ -25,9 +25,16 @@ export function renderMusic(ctx: CanvasRenderingContext2D, m: MusicGame, o: Musi
   const shake = m.fx.shakeOffset();
   ctx.save();
   ctx.translate(shake.x, shake.y);
-  if (m.cfg.format === 'escape') {
+  if (m.cfg.format === 'sync') {
+    // Open drop: clip to the play area and follow the ball down.
+    ctx.beginPath();
+    ctx.rect(0, FALL_TOP, VIEW.w, FALL_BOTTOM - FALL_TOP);
+    ctx.clip();
+    ctx.translate(0, (FALL_TOP + FALL_BOTTOM) / 2 - m.camY);
+    drawPlatforms(ctx, m, t.text);
+  } else if (m.cfg.format === 'escape') {
     for (const r of m.rings) if (!r.broken) drawGapRing(ctx, r);
-  } else if (!m.rings[0].broken) {
+  } else if (m.rings[0] && !m.rings[0].broken) {
     const ring = m.rings[0];
     ctx.beginPath();
     ctx.arc(ARENA.cx, ARENA.cy, ring.r, 0, Math.PI * 2);
@@ -91,7 +98,7 @@ export function renderMusic(ctx: CanvasRenderingContext2D, m: MusicGame, o: Musi
 
 function drawHeader(ctx: CanvasRenderingContext2D, m: MusicGame, ink: string, muted: string, track: string) {
   const song = m.cfg.song;
-  const len = song.events.length;
+  const len = m.events.length;
   ctx.save();
   ctx.textAlign = 'center';
   ctx.textBaseline = 'alphabetic';
@@ -123,6 +130,44 @@ function drawHeader(ctx: CanvasRenderingContext2D, m: MusicGame, ink: string, mu
   ctx.beginPath();
   ctx.roundRect(x, 262, (w * ((m.noteIndex % len) || (m.noteIndex ? len : 0))) / len, 8, 4);
   ctx.fill();
+  ctx.restore();
+}
+
+const FALL_TOP = 300;
+const FALL_BOTTOM = 1040;
+
+/**
+ * Beat Sync platforms: short slanted bars, each where the ball meets it on a note. Upcoming ones
+ * are drawn ahead so you can see where it lands; used ones flash, then fade away.
+ */
+function drawPlatforms(ctx: CanvasRenderingContext2D, m: MusicGame, ink: string) {
+  const top = m.camY - (FALL_BOTTOM - FALL_TOP) / 2 - 60;
+  const bottom = m.camY + (FALL_BOTTOM - FALL_TOP) / 2 + 60;
+  const r = m.ball.r;
+  ctx.save();
+  ctx.lineCap = 'round';
+  ctx.lineWidth = 12;
+  for (const h of m.hits) {
+    if (h.p.y < top || h.p.y > bottom) continue;
+    const age = m.time - h.t;
+    const alpha = age < 0 ? 1 : Math.max(0, 1 - age / 3);
+    if (alpha <= 0) continue;
+    const cx = h.p.x - h.n.x * (r + 6);
+    const cy = h.p.y - h.n.y * (r + 6);
+    const tx = -h.n.y * 42;
+    const ty = h.n.x * 42;
+    ctx.globalAlpha = alpha;
+    ctx.strokeStyle = m.cfg.colorCycle ? MUSIC_COLORS[h.color % MUSIC_COLORS.length] : ink;
+    ctx.beginPath();
+    ctx.moveTo(cx - tx, cy - ty);
+    ctx.lineTo(cx + tx, cy + ty);
+    ctx.stroke();
+    if (age >= 0 && age < 0.15) {
+      ctx.globalAlpha = 1 - age / 0.15;
+      ctx.strokeStyle = '#ffffff';
+      ctx.stroke();
+    }
+  }
   ctx.restore();
 }
 

@@ -132,7 +132,7 @@ export function parseMidi(buf: ArrayBuffer, name: string): Song {
       last.dur = Math.max(last.dur, n.dur);
       last.vel = Math.max(last.vel, n.vel);
     } else {
-      out.push({ notes: [n.note], dur: n.dur, vel: n.vel });
+      out.push({ time: n.time - notes[0].time, notes: [n.note], dur: n.dur, vel: n.vel });
       groupStart = n.time;
     }
   }
