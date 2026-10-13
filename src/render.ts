@@ -13,7 +13,7 @@ interface Theme {
 }
 
 const THEMES: Record<ThemeName, Theme> = {
-  light: { bg: '#F4F1EA', arena: '#FFFFFF', text: '#111111', muted: '#8A857B', track: '#E6E1D6' },
+  light: { bg: '#ECEEF1', arena: '#FFFFFF', text: '#111111', muted: '#7A818A', track: '#DADEE4' },
   dark: { bg: '#121212', arena: '#1B1B1B', text: '#F5F5F5', muted: '#7A7A7A', track: '#2C2C2C' },
 };
 

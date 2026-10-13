@@ -1,9 +1,9 @@
-import '@fontsource/barlow-condensed/600.css';
-import '@fontsource/barlow-condensed/700.css';
-import '@fontsource/barlow-condensed/800.css';
-import '@fontsource/inter/400.css';
-import '@fontsource/inter/500.css';
-import '@fontsource/inter/600.css';
+import '@fontsource/barlow-condensed/latin-600.css';
+import '@fontsource/barlow-condensed/latin-700.css';
+import '@fontsource/barlow-condensed/latin-800.css';
+import '@fontsource/archivo/latin-400.css';
+import '@fontsource/archivo/latin-500.css';
+import '@fontsource/archivo/latin-600.css';
 import './style.css';
 import { Sfx } from './audio';
 import { Game, VIEW, type ArenaShape } from './game';
@@ -24,10 +24,17 @@ interface Settings {
 
 const MAX_FIGHTERS = 6;
 const STORAGE_KEY = 'bounceballs.settings';
+/** First visit follows the page's theme if the host set one, else the OS setting. */
+function initialTheme(): ThemeName {
+  const host = document.documentElement.dataset.theme;
+  if (host === 'light' || host === 'dark') return host;
+  return window.matchMedia?.('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+}
+
 const DEFAULTS: Settings = {
   fighters: ['sword', 'dagger'],
   arena: 'square',
-  theme: 'light',
+  theme: initialTheme(),
   gravity: 700,
   speed: 1,
   sound: true,

@@ -2,7 +2,11 @@
 
 A bouncing-ball weapon battle engine, the kind from those YouTube Shorts where balls with spinning weapons fight and get stronger with every hit.
 
-## Run it
+## Play without installing anything
+
+Download [`BounceBalls.html`](BounceBalls.html) (on GitHub: open it, then use the **Download raw file** button) and double-click it. It's a single self-contained file, and everything works offline, fonts included.
+
+## Run it from source
 
 ```bash
 npm install
@@ -10,6 +14,10 @@ npm run dev
 ```
 
 Then open the URL Vite prints (usually http://localhost:5173). Click anywhere once to enable sound.
+
+On Windows, if PowerShell says running scripts is disabled, run the same commands as `npm.cmd install` and `npm.cmd run dev`, or use Command Prompt instead.
+
+To regenerate the standalone file after making changes, run `npm run build:single`.
 
 ## How it plays
 

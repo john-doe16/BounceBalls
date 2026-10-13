@@ -1,11 +1,24 @@
 :root {
-  --page: #e9e5dc;
-  --surface: #fbfaf7;
-  --line: #ddd8cc;
+  --page: #e2e5e9;
+  --surface: #f7f8fa;
+  --line: #d2d7de;
   --text: #111111;
-  --muted: #7d786e;
+  --muted: #6c737c;
   --control: #ffffff;
-  --track: #e6e1d6;
+  --track: #dadee4;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme='light']) {
+    --page: #0a0a0a;
+    --surface: #161616;
+    --line: #2a2a2a;
+    --text: #f2f2f2;
+    --muted: #8a8a8a;
+    --control: #1f1f1f;
+    --track: #2c2c2c;
+    color-scheme: dark;
+  }
 }
 
 :root[data-theme='dark'] {
@@ -16,6 +29,7 @@
   --muted: #8a8a8a;
   --control: #1f1f1f;
   --track: #2c2c2c;
+  color-scheme: dark;
 }
 
 * {
@@ -27,7 +41,7 @@ body {
   margin: 0;
   background: var(--page);
   color: var(--text);
-  font: 400 14px/1.4 Inter, system-ui, sans-serif;
+  font: 400 14px/1.4 Archivo, system-ui, sans-serif;
   -webkit-font-smoothing: antialiased;
 }
 
@@ -157,7 +171,7 @@ button.wide {
 }
 
 kbd {
-  font: 500 11px/1 Inter, system-ui, sans-serif;
+  font: 500 11px/1 Archivo, system-ui, sans-serif;
   color: inherit;
   opacity: 0.55;
   margin-left: 6px;
@@ -303,4 +317,11 @@ input[type='range'] {
   padding: 12px 18px 16px;
   color: var(--muted);
   font-size: 12px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .toggle input,
+  .toggle input::after {
+    transition: none;
+  }
 }
