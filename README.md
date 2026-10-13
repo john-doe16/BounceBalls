@@ -36,7 +36,7 @@ To regenerate the standalone file after making changes, run `npm run build:singl
 | Unarmed | Speeds up on every wall bounce; body slams deal damage based on speed |
 
 - **Look:** flat, Shorts-ready 9:16 canvas with a scoreboard header and a light or dark theme. Nothing but the fight is drawn on the canvas, so it records cleanly.
-- **Juice:** hitstop (freeze frames), screen shake, particles, damage numbers, shockwaves, slow-mo on K.O., and synthesized sound (wall bounces play a pentatonic melody).
+- **Juice:** hitstop (freeze frames), screen shake, particles, damage numbers, shockwaves, slow-mo on K.O., and synthesized sound.
 - Up to 6 fighters in a free-for-all, with a square or circle arena.
 
 ## Controls

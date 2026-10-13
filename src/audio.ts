@@ -1,14 +1,11 @@
 // Every sound is synthesized with Web Audio — no asset files needed.
 
-const PENTATONIC = [0, 2, 4, 7, 9];
-
 export class Sfx {
   enabled = true;
   private ctx: AudioContext | null = null;
   private master!: GainNode;
   private noise!: AudioBuffer;
   private last: Record<string, number> = {};
-  private degree = 5;
 
   /** Browsers only allow audio after a user gesture; call this from one. */
   unlock() {
@@ -70,15 +67,14 @@ export class Sfx {
     src.stop(t + dur + 0.02);
   }
 
-  /** Wall bounce: a pentatonic note that random-walks, so bounces form a little melody. */
-  bounce() {
+  /** Wall bounce: a short rubbery thud, louder the harder the ball hits (`impact` 0..1). */
+  bounce(impact: number) {
     const t = this.ready('bounce', 0.03);
     if (t === null) return;
-    this.degree = Math.max(0, Math.min(11, this.degree + [-2, -1, 1, 1, 2][Math.floor(Math.random() * 5)]));
-    const semis = PENTATONIC[this.degree % 5] + 12 * Math.floor(this.degree / 5);
-    const f = 392 * Math.pow(2, semis / 12);
-    this.tone('triangle', f, f, t, 0.16, 0.22);
-    this.tone('sine', f * 2, f * 2, t, 0.05, 0.12);
+    const k = Math.max(0.15, Math.min(1, impact));
+    const f = 120 + Math.random() * 30;
+    this.tone('sine', f, f * 0.5, t, 0.12 + 0.3 * k, 0.09);
+    this.burst(t, 0.04 + 0.12 * k, 0.04, 'lowpass', 700 + 600 * k);
   }
 
   bump() {

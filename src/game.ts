@@ -213,7 +213,7 @@ export class Game {
         if (vn > 0) {
           b.vx -= 2 * vn * nx;
           b.vy -= 2 * vn * ny;
-          this.wallBounce(b, cx + nx * half, cy + ny * half);
+          this.wallBounce(b, cx + nx * half, cy + ny * half, vn);
         }
       }
       return;
@@ -224,35 +224,36 @@ export class Game {
       b.x = lo.x + b.r;
       if (b.vx < 0) {
         b.vx = -b.vx;
-        this.wallBounce(b, lo.x, b.y);
+        this.wallBounce(b, lo.x, b.y, b.vx);
       }
     } else if (b.x + b.r > hi.x) {
       b.x = hi.x - b.r;
       if (b.vx > 0) {
         b.vx = -b.vx;
-        this.wallBounce(b, hi.x, b.y);
+        this.wallBounce(b, hi.x, b.y, -b.vx);
       }
     }
     if (b.y - b.r < lo.y) {
       b.y = lo.y + b.r;
       if (b.vy < 0) {
         b.vy = -b.vy;
-        this.wallBounce(b, b.x, lo.y);
+        this.wallBounce(b, b.x, lo.y, b.vy);
       }
     } else if (b.y + b.r > hi.y) {
       b.y = hi.y - b.r;
       if (b.vy > 0) {
         b.vy = -b.vy;
-        this.wallBounce(b, b.x, hi.y);
+        this.wallBounce(b, b.x, hi.y, -b.vy);
       }
     }
   }
 
-  private wallBounce(b: Ball, x: number, y: number) {
+  /** `speed` is how fast the ball was moving into the wall. */
+  private wallBounce(b: Ball, x: number, y: number, speed: number) {
     b.weapon.onWallBounce(this, b);
     if (this.time - b.lastBounceSound > 0.06) {
       b.lastBounceSound = this.time;
-      this.sfx.bounce();
+      this.sfx.bounce(speed / 900);
       this.fx.ring(x, y, b.color, 34, 3, 0.3);
       this.fx.burst(x, y, b.color, 5, 160, { size: 3, life: 0.3, grav: 0 });
     }
