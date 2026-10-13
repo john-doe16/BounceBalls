@@ -51,6 +51,13 @@ export class Fx {
   private shakeAmt = 0;
   flash = 0;
   flashColor = '#ffffff';
+  /** Theme colors, set by the renderer. Effects can use the color 'ink' to mean "contrasts with the background". */
+  ink = '#111111';
+  paper = '#ffffff';
+
+  private c(color: string) {
+    return color === 'ink' ? this.ink : color;
+  }
 
   burst(x: number, y: number, color: string, count: number, speed: number, o: BurstOpts = {}) {
     const spread = o.spread ?? Math.PI * 2;
@@ -120,19 +127,18 @@ export class Fx {
     for (const r of this.rings) {
       const k = 1 - r.life / r.max;
       ctx.globalAlpha = (1 - k) * 0.8;
-      ctx.strokeStyle = r.color;
+      ctx.strokeStyle = this.c(r.color);
       ctx.lineWidth = r.width * (1 - k) + 0.5;
       ctx.beginPath();
       ctx.arc(r.x, r.y, r.maxR * (0.2 + 0.8 * Math.sqrt(k)), 0, Math.PI * 2);
       ctx.stroke();
     }
 
-    ctx.globalCompositeOperation = 'lighter';
     for (const p of this.particles) {
       const k = p.life / p.max;
       ctx.globalAlpha = Math.min(1, k * 1.5);
       if (p.spark) {
-        ctx.strokeStyle = p.color;
+        ctx.strokeStyle = this.c(p.color);
         ctx.lineWidth = p.size * 0.6;
         ctx.lineCap = 'round';
         ctx.beginPath();
@@ -140,13 +146,12 @@ export class Fx {
         ctx.lineTo(p.x - p.vx * 0.035, p.y - p.vy * 0.035);
         ctx.stroke();
       } else {
-        ctx.fillStyle = p.color;
+        ctx.fillStyle = this.c(p.color);
         ctx.beginPath();
         ctx.arc(p.x, p.y, p.size * (0.3 + 0.7 * k), 0, Math.PI * 2);
         ctx.fill();
       }
     }
-    ctx.globalCompositeOperation = 'source-over';
 
     ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
@@ -155,11 +160,11 @@ export class Fx {
       const age = 1 - t.life / t.max;
       const pop = 1 + 0.7 * Math.max(0, 1 - age * 7);
       ctx.globalAlpha = Math.min(1, (t.life / t.max) * 3);
-      ctx.font = `900 ${Math.round(t.size * pop)}px system-ui, sans-serif`;
+      ctx.font = `800 ${Math.round(t.size * pop)}px 'Barlow Condensed', sans-serif`;
       ctx.lineWidth = 6;
-      ctx.strokeStyle = 'rgba(0,0,0,0.75)';
+      ctx.strokeStyle = this.paper;
       ctx.strokeText(t.text, t.x, t.y);
-      ctx.fillStyle = t.color;
+      ctx.fillStyle = this.c(t.color);
       ctx.fillText(t.text, t.x, t.y);
     }
     ctx.restore();

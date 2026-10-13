@@ -27,6 +27,7 @@ Then open the URL Vite prints (usually http://localhost:5173). Click anywhere on
 | Bow     | Fires volleys of arrows; +1 arrow per hit. Melee weapons can block arrows |
 | Unarmed | Speeds up on every wall bounce; body slams deal damage based on speed |
 
+- **Look:** flat, Shorts-ready 9:16 canvas with a scoreboard header and a light or dark theme. Nothing but the fight is drawn on the canvas, so it records cleanly.
 - **Juice:** hitstop (freeze frames), screen shake, particles, damage numbers, shockwaves, slow-mo on K.O., and synthesized sound (wall bounces play a pentatonic melody).
 - Up to 6 fighters in a free-for-all, with a square or circle arena.
 

@@ -6,48 +6,65 @@
     <title>Bounce Balls</title>
   </head>
   <body>
-    <div id="app">
+    <main id="app">
       <canvas id="view"></canvas>
+
       <aside id="panel">
-        <h1>BOUNCE<span>BALLS</span></h1>
+        <header class="panel-head">
+          <h1>Bounce Balls</h1>
+        </header>
 
         <section>
-          <h2>Fighters</h2>
-          <div id="fighters"></div>
-          <div class="row">
-            <button id="add">+ Add fighter</button>
-            <button id="random">🎲 Random</button>
+          <div class="section-head">
+            <h2>Fighters</h2>
+            <button id="random" class="link">Shuffle</button>
           </div>
+          <div id="fighters"></div>
+          <button id="add" class="ghost wide">Add fighter</button>
         </section>
 
         <section>
           <h2>Arena</h2>
-          <div class="seg" id="arena">
-            <button data-v="square">Square</button>
-            <button data-v="circle">Circle</button>
+          <div class="field">
+            <span>Shape</span>
+            <div class="seg" id="arena">
+              <button data-v="square">Square</button>
+              <button data-v="circle">Circle</button>
+            </div>
           </div>
-          <label class="slider">Gravity <output id="gravityOut"></output>
+          <div class="field">
+            <span>Theme</span>
+            <div class="seg" id="theme">
+              <button data-v="light">Light</button>
+              <button data-v="dark">Dark</button>
+            </div>
+          </div>
+          <label class="field slider">
+            <span>Gravity</span>
             <input type="range" id="gravity" min="0" max="2000" step="50" />
+            <output id="gravityOut"></output>
           </label>
-          <label class="slider">Sim speed <output id="speedOut"></output>
+          <label class="field slider">
+            <span>Speed</span>
             <input type="range" id="speed" min="0.25" max="3" step="0.25" />
+            <output id="speedOut"></output>
           </label>
         </section>
 
         <section>
           <h2>Options</h2>
-          <label class="check"><input type="checkbox" id="sound" /> Sound</label>
-          <label class="check"><input type="checkbox" id="trails" /> Trails</label>
-          <label class="check"><input type="checkbox" id="autoRematch" /> Auto rematch</label>
+          <label class="field toggle"><span>Sound</span><input type="checkbox" id="sound" /></label>
+          <label class="field toggle"><span>Trails</span><input type="checkbox" id="trails" /></label>
+          <label class="field toggle"><span>Auto rematch</span><input type="checkbox" id="autoRematch" /></label>
         </section>
 
-        <div class="row">
-          <button id="fight" class="primary">⚔ Rematch (R)</button>
-          <button id="pause">Pause (Space)</button>
-        </div>
-        <p class="hint">Grab a ball and fling it. When two weapons clash they parry and both reverse spin.</p>
+        <section class="actions">
+          <button id="fight" class="primary">Rematch <kbd>R</kbd></button>
+          <button id="pause" class="ghost">Pause <kbd>Space</kbd></button>
+        </section>
+        <p class="hint">Drag a ball to grab and fling it.</p>
       </aside>
-    </div>
+    </main>
     <script type="module" src="/src/main.ts"></script>
   </body>
 </html>

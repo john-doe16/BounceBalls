@@ -27,7 +27,7 @@ export interface Arrow {
   dead: boolean;
 }
 
-const EXTRA_COLORS = ['#ff6ad5', '#c0ff3e', '#46f0ff', '#ffb347', '#ffffff', '#ff3b3b'];
+const EXTRA_COLORS = ['#D6336C', '#5C940D', '#1C7ED6', '#E8590C', '#495057', '#9C36B5'];
 
 export class Game {
   balls: Ball[] = [];
@@ -281,7 +281,7 @@ export class Game {
     const px = a.x + nx * a.r;
     const py = a.y + ny * a.r;
     this.sfx.bump();
-    this.fx.burst(px, py, '#ffffff', 4, 180, { size: 2.5, life: 0.25, grav: 0 });
+    this.fx.burst(px, py, 'ink', 4, 180, { size: 2.5, life: 0.25, grav: 0 });
 
     for (const [att, tgt, sx] of [[a, b, 1], [b, a, -1]] as const) {
       if (att.weapon instanceof Unarmed && !att.cooldowns.has(tgt.id)) {
@@ -320,9 +320,9 @@ export class Game {
     a.vy -= (dy / d) * 140;
     b.vx += (dx / d) * 140;
     b.vy += (dy / d) * 140;
-    this.fx.burst(x, y, '#fff6c2', 14, 650, { spark: true, size: 4, life: 0.3, grav: 200 });
-    this.fx.burst(x, y, '#ffb000', 6, 400, { spark: true, size: 3, life: 0.25, grav: 200 });
-    this.fx.ring(x, y, '#fff6c2', 40, 4, 0.2);
+    this.fx.burst(x, y, '#FFB703', 14, 650, { spark: true, size: 4, life: 0.3, grav: 200 });
+    this.fx.burst(x, y, 'ink', 6, 400, { spark: true, size: 3, life: 0.25, grav: 200 });
+    this.fx.ring(x, y, '#FFB703', 40, 4, 0.2);
     this.fx.shake(5);
     this.hitstop = Math.max(this.hitstop, 0.035);
     this.sfx.clang();
@@ -355,7 +355,7 @@ export class Game {
       ar.y += ar.vy * dt;
       if (!this.inside(ar.x, ar.y, 2)) {
         ar.dead = true;
-        this.fx.burst(ar.x, ar.y, '#d9c4a0', 4, 120, { size: 2, life: 0.25 });
+        this.fx.burst(ar.x, ar.y, '#7A4E2D', 4, 120, { size: 2, life: 0.25 });
         continue;
       }
       for (const b of this.balls) {
@@ -369,7 +369,7 @@ export class Game {
             });
           if (blocked) {
             ar.dead = true;
-            this.fx.burst(ar.x, ar.y, '#fff6c2', 6, 350, { spark: true, size: 3, life: 0.2, grav: 0 });
+            this.fx.burst(ar.x, ar.y, '#FFB703', 6, 350, { spark: true, size: 3, life: 0.2, grav: 0 });
             this.sfx.tink();
             break;
           }
@@ -403,8 +403,8 @@ export class Game {
 
     const angle = Math.atan2(ny, nx);
     this.fx.burst(px, py, tgt.color, 10 + Math.min(dmg * 2, 30), 380 + dmg * 10, { angle, spread: 1.6, size: 5, life: 0.55 });
-    this.fx.burst(px, py, '#ffffff', 6, 600, { angle, spread: 1.2, spark: true, size: 3, life: 0.2, grav: 0 });
-    this.fx.text(px, py - 10, `-${fmt(dmg)}`, '#ffffff', 30 + Math.min(dmg * 2.5, 40));
+    this.fx.burst(px, py, '#FFB703', 6, 600, { angle, spread: 1.2, spark: true, size: 3, life: 0.2, grav: 0 });
+    this.fx.text(px, py - 10, `-${fmt(dmg)}`, 'ink', 30 + Math.min(dmg * 2.5, 40));
     this.fx.shake(Math.min(3 + dmg * 1.2, 16));
     this.hitstop = Math.max(this.hitstop, Math.min(0.025 + dmg * 0.008, 0.14));
     this.sfx.hit(dmg);
@@ -420,8 +420,8 @@ export class Game {
     if (!b.alive || b.hp >= b.maxHp) return;
     b.hp = Math.min(b.maxHp, b.hp + amount);
     b.healGlow = 1;
-    this.fx.text(b.x, b.y - b.r - 18, `+${fmt(amount)}`, '#38ff9c', 24);
-    this.fx.burst(b.x, b.y, '#38ff9c', 8, 160, { size: 3, life: 0.5, grav: -200 });
+    this.fx.text(b.x, b.y - b.r - 18, `+${fmt(amount)}`, '#1FAA59', 24);
+    this.fx.burst(b.x, b.y, '#1FAA59', 8, 160, { size: 3, life: 0.5, grav: -200 });
     this.sfx.heal();
   }
 
@@ -429,12 +429,12 @@ export class Game {
     b.alive = false;
     if (this.grab?.ball === b) this.grab = null;
     this.fx.burst(b.x, b.y, b.color, 70, 750, { size: 7, life: 1.1, grav: 400 });
-    this.fx.burst(b.x, b.y, '#ffffff', 25, 900, { spark: true, size: 4, life: 0.5, grav: 0 });
+    this.fx.burst(b.x, b.y, 'ink', 25, 900, { spark: true, size: 4, life: 0.5, grav: 0 });
     this.fx.ring(b.x, b.y, b.color, 220, 10, 0.6);
-    this.fx.ring(b.x, b.y, '#ffffff', 140, 6, 0.4);
+    this.fx.ring(b.x, b.y, 'ink', 140, 6, 0.4);
     this.fx.text(b.x, b.y - 40, 'K.O.!', b.color, 56);
     this.fx.shake(26);
-    this.fx.flash = 0.55;
+    this.fx.flash = 0.35;
     this.fx.flashColor = b.color;
     this.hitstop = Math.max(this.hitstop, 0.18);
     this.slowmo = 0.2;

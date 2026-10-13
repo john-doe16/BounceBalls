@@ -5,13 +5,13 @@ import type { Game } from './game';
 export type WeaponKind = 'sword' | 'dagger' | 'spear' | 'hammer' | 'scythe' | 'bow' | 'unarmed';
 
 export const WEAPON_INFO: Record<WeaponKind, { label: string; color: string; blurb: string }> = {
-  sword: { label: 'Sword', color: '#ff4d5e', blurb: '+1 damage every hit' },
-  dagger: { label: 'Dagger', color: '#3ee07a', blurb: 'Spins faster (and a bit harder) every hit' },
-  spear: { label: 'Spear', color: '#ffd23f', blurb: 'Longer and stronger every hit' },
-  hammer: { label: 'Hammer', color: '#a66bff', blurb: 'Massive knockback, head grows every hit' },
-  scythe: { label: 'Scythe', color: '#2ad4c9', blurb: 'Lifesteal grows every hit' },
-  bow: { label: 'Bow', color: '#ff8c42', blurb: '+1 arrow per volley every hit' },
-  unarmed: { label: 'Unarmed', color: '#4da6ff', blurb: 'Faster every bounce, body slams for speed damage' },
+  sword: { label: 'Sword', color: '#E63946', blurb: '+1 damage every hit' },
+  dagger: { label: 'Dagger', color: '#2BA84A', blurb: 'Spins faster (and a bit harder) every hit' },
+  spear: { label: 'Spear', color: '#F4B400', blurb: 'Longer and stronger every hit' },
+  hammer: { label: 'Hammer', color: '#7B4FD6', blurb: 'Massive knockback, head grows every hit' },
+  scythe: { label: 'Scythe', color: '#14A3A3', blurb: 'Lifesteal grows every hit' },
+  bow: { label: 'Bow', color: '#F26B1D', blurb: '+1 arrow per volley every hit' },
+  unarmed: { label: 'Unarmed', color: '#2F6FDE', blurb: 'Faster every bounce, body slams for speed damage' },
 };
 
 export const WEAPON_KINDS = Object.keys(WEAPON_INFO) as WeaponKind[];
@@ -64,13 +64,10 @@ export abstract class Weapon {
 
 // ---------- drawing helpers ----------
 
-function metal(ctx: CanvasRenderingContext2D, hw: number) {
-  const g = ctx.createLinearGradient(0, -hw, 0, hw);
-  g.addColorStop(0, '#ffffff');
-  g.addColorStop(0.5, '#c9d2de');
-  g.addColorStop(1, '#7f8a9c');
-  return g;
-}
+/** Outline color shared with the balls — gives everything a flat sticker look. */
+export const INK = '#111111';
+const STEEL = '#E4E7EC';
+const WOOD = '#7A4E2D';
 
 function bladePath(ctx: CanvasRenderingContext2D, x0: number, x1: number, hw: number, tip: number) {
   ctx.beginPath();
@@ -94,7 +91,7 @@ function swoosh(ctx: CanvasRenderingContext2D, w: Weapon, b: Ball, reach: number
   for (let i = 0; i < steps; i++) {
     const a0 = w.angle - w.dir * span * (1 - i / steps);
     const a1 = w.angle - w.dir * span * (1 - (i + 1) / steps);
-    ctx.globalAlpha = (0.28 * (i + 1)) / steps;
+    ctx.globalAlpha = (0.2 * (i + 1)) / steps;
     ctx.beginPath();
     ctx.arc(b.x, b.y, reach, Math.min(a0, a1), Math.max(a0, a1));
     ctx.stroke();
@@ -128,22 +125,19 @@ export class Sword extends Weapon {
     swoosh(ctx, this, b, r + L - 8, 12);
     ctx.save();
     this.local(ctx, b);
-    ctx.fillStyle = '#5b3b22';
+    ctx.fillStyle = WOOD;
     ctx.fillRect(r - 8, -3.5, 18, 7);
-    ctx.fillStyle = '#e0b453';
+    ctx.fillStyle = '#C9972E';
     ctx.beginPath();
     ctx.roundRect(r + 8, -14, 6, 28, 3);
     ctx.fill();
-    ctx.shadowColor = b.color;
-    ctx.shadowBlur = Math.min(4 + this.damage * 1.8, 36);
     bladePath(ctx, r + 14, r + L, 6, 16);
-    ctx.fillStyle = metal(ctx, 6);
+    ctx.fillStyle = STEEL;
     ctx.fill();
-    ctx.shadowBlur = 0;
-    ctx.strokeStyle = '#4b5563';
-    ctx.lineWidth = 1.5;
+    ctx.strokeStyle = INK;
+    ctx.lineWidth = 2;
     ctx.stroke();
-    ctx.strokeStyle = 'rgba(255,255,255,0.7)';
+    ctx.strokeStyle = 'rgba(0,0,0,0.15)';
     ctx.lineWidth = 1.2;
     ctx.beginPath();
     ctx.moveTo(r + 18, 0);
@@ -179,20 +173,17 @@ export class Dagger extends Weapon {
     swoosh(ctx, this, b, r + L - 6, 10);
     ctx.save();
     this.local(ctx, b);
-    ctx.fillStyle = '#2f2f3a';
+    ctx.fillStyle = INK;
     ctx.fillRect(r - 6, -3, 14, 6);
-    ctx.fillStyle = '#9aa3b2';
+    ctx.fillStyle = '#9097A1';
     ctx.beginPath();
     ctx.roundRect(r + 7, -8, 4, 16, 2);
     ctx.fill();
-    ctx.shadowColor = b.color;
-    ctx.shadowBlur = Math.min(this.spin, 32);
     bladePath(ctx, r + 11, r + L, 4.5, 12);
-    ctx.fillStyle = metal(ctx, 4.5);
+    ctx.fillStyle = STEEL;
     ctx.fill();
-    ctx.shadowBlur = 0;
-    ctx.strokeStyle = '#4b5563';
-    ctx.lineWidth = 1.2;
+    ctx.strokeStyle = INK;
+    ctx.lineWidth = 2;
     ctx.stroke();
     ctx.restore();
   }
@@ -223,7 +214,7 @@ export class Spear extends Weapon {
     swoosh(ctx, this, b, r + L - 10, 8);
     ctx.save();
     this.local(ctx, b);
-    ctx.strokeStyle = '#9a6a3c';
+    ctx.strokeStyle = WOOD;
     ctx.lineWidth = 5;
     ctx.lineCap = 'round';
     ctx.beginPath();
@@ -238,19 +229,16 @@ export class Spear extends Weapon {
     ctx.lineTo(r + L - 40, 8);
     ctx.closePath();
     ctx.fill();
-    ctx.shadowColor = b.color;
-    ctx.shadowBlur = Math.min(4 + this.damage * 3, 30);
     ctx.beginPath();
     ctx.moveTo(r + L - 26, -7);
     ctx.lineTo(r + L, 0);
     ctx.lineTo(r + L - 26, 7);
     ctx.lineTo(r + L - 21, 0);
     ctx.closePath();
-    ctx.fillStyle = metal(ctx, 7);
+    ctx.fillStyle = STEEL;
     ctx.fill();
-    ctx.shadowBlur = 0;
-    ctx.strokeStyle = '#4b5563';
-    ctx.lineWidth = 1.2;
+    ctx.strokeStyle = INK;
+    ctx.lineWidth = 2;
     ctx.stroke();
     ctx.restore();
   }
@@ -299,24 +287,18 @@ export class Hammer extends Weapon {
     swoosh(ctx, this, b, r + this.handle + d / 2, Math.min(hw * 1.4, 34));
     ctx.save();
     this.local(ctx, b);
-    ctx.strokeStyle = '#6b4a2e';
+    ctx.strokeStyle = WOOD;
     ctx.lineWidth = 7;
     ctx.lineCap = 'round';
     ctx.beginPath();
     ctx.moveTo(r - 6, 0);
     ctx.lineTo(r + this.handle, 0);
     ctx.stroke();
-    const g = ctx.createLinearGradient(0, -hw, 0, hw);
-    g.addColorStop(0, '#b8c0cc');
-    g.addColorStop(1, '#4f5560');
-    ctx.shadowColor = b.color;
-    ctx.shadowBlur = 8 + this.growth;
-    ctx.fillStyle = g;
+    ctx.fillStyle = '#9097A1';
     ctx.beginPath();
     ctx.roundRect(r + this.handle, -hw, d, hw * 2, 5);
     ctx.fill();
-    ctx.shadowBlur = 0;
-    ctx.strokeStyle = '#2e3238';
+    ctx.strokeStyle = INK;
     ctx.lineWidth = 2;
     ctx.stroke();
     ctx.fillStyle = b.color;
@@ -360,25 +342,22 @@ export class Scythe extends Weapon {
     swoosh(ctx, this, b, tip - 8, 14);
     ctx.save();
     this.local(ctx, b);
-    ctx.strokeStyle = '#3f2d1f';
+    ctx.strokeStyle = WOOD;
     ctx.lineWidth = 5;
     ctx.lineCap = 'round';
     ctx.beginPath();
     ctx.moveTo(r - 6, 0);
     ctx.lineTo(tip + 4, 0);
     ctx.stroke();
-    ctx.shadowColor = '#38ff9c';
-    ctx.shadowBlur = 6 + this.lifesteal * 3;
     ctx.beginPath();
     ctx.moveTo(tip + 3, -s * 4);
     ctx.quadraticCurveTo(tip + 14, s * 30, tip - 28, s * 56);
     ctx.quadraticCurveTo(tip - 2, s * 28, tip - 6, s * 2);
     ctx.closePath();
-    ctx.fillStyle = metal(ctx, 30);
+    ctx.fillStyle = STEEL;
     ctx.fill();
-    ctx.shadowBlur = 0;
-    ctx.strokeStyle = '#3c4654';
-    ctx.lineWidth = 1.5;
+    ctx.strokeStyle = INK;
+    ctx.lineWidth = 2;
     ctx.stroke();
     ctx.restore();
   }
@@ -429,7 +408,7 @@ export class Bow extends Weapon {
     const pull = 12 * Math.max(0, 1 - this.reload / this.interval);
     ctx.save();
     this.local(ctx, b);
-    ctx.strokeStyle = '#e8e8e8';
+    ctx.strokeStyle = INK;
     ctx.lineWidth = 1.5;
     ctx.beginPath();
     ctx.moveTo(ex, -ey);
@@ -437,9 +416,7 @@ export class Bow extends Weapon {
     ctx.lineTo(ex, ey);
     ctx.stroke();
     if (this.reload < this.interval * 0.8) drawArrow(ctx, ex - pull, 0, ex - pull + 34, 0, b.color);
-    ctx.shadowColor = b.color;
-    ctx.shadowBlur = Math.min(4 + this.arrows * 2, 30);
-    ctx.strokeStyle = '#9a6a3c';
+    ctx.strokeStyle = WOOD;
     ctx.lineWidth = 5;
     ctx.lineCap = 'round';
     ctx.beginPath();
@@ -477,8 +454,6 @@ export class Unarmed extends Weapon {
     ctx.save();
     ctx.strokeStyle = b.color;
     ctx.lineCap = 'round';
-    ctx.shadowColor = b.color;
-    ctx.shadowBlur = 10 + 30 * k;
     ctx.globalAlpha = 0.3 + 0.6 * k;
     ctx.lineWidth = 3 + 3 * k;
     ctx.beginPath();
@@ -501,7 +476,7 @@ export class Unarmed extends Weapon {
 export function drawArrow(ctx: CanvasRenderingContext2D, x0: number, y0: number, x1: number, y1: number, color: string) {
   const a = Math.atan2(y1 - y0, x1 - x0);
   ctx.save();
-  ctx.strokeStyle = '#d9c4a0';
+  ctx.strokeStyle = WOOD;
   ctx.lineWidth = 2.5;
   ctx.beginPath();
   ctx.moveTo(x0, y0);
@@ -509,7 +484,7 @@ export function drawArrow(ctx: CanvasRenderingContext2D, x0: number, y0: number,
   ctx.stroke();
   ctx.translate(x1, y1);
   ctx.rotate(a);
-  ctx.fillStyle = '#e6ebf2';
+  ctx.fillStyle = '#9097A1';
   ctx.beginPath();
   ctx.moveTo(6, 0);
   ctx.lineTo(-5, -4.5);

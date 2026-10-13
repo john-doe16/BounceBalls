@@ -1,13 +1,20 @@
+import '@fontsource/barlow-condensed/600.css';
+import '@fontsource/barlow-condensed/700.css';
+import '@fontsource/barlow-condensed/800.css';
+import '@fontsource/inter/400.css';
+import '@fontsource/inter/500.css';
+import '@fontsource/inter/600.css';
 import './style.css';
 import { Sfx } from './audio';
 import { Game, VIEW, type ArenaShape } from './game';
 import { pick } from './math';
-import { render } from './render';
+import { FONT, render, type ThemeName } from './render';
 import { WEAPON_INFO, WEAPON_KINDS, type WeaponKind } from './weapons';
 
 interface Settings {
   fighters: WeaponKind[];
   arena: ArenaShape;
+  theme: ThemeName;
   gravity: number;
   speed: number;
   sound: boolean;
@@ -20,6 +27,7 @@ const STORAGE_KEY = 'bounceballs.settings';
 const DEFAULTS: Settings = {
   fighters: ['sword', 'dagger'],
   arena: 'square',
+  theme: 'light',
   gravity: 700,
   speed: 1,
   sound: true,
@@ -135,7 +143,7 @@ const fightersEl = $('fighters');
 const pauseBtn = $<HTMLButtonElement>('pause');
 
 function syncPause() {
-  pauseBtn.textContent = paused ? 'Resume (Space)' : 'Pause (Space)';
+  pauseBtn.innerHTML = `${paused ? 'Resume' : 'Pause'} <kbd>Space</kbd>`;
 }
 
 function renderFighters() {
@@ -162,7 +170,8 @@ function renderFighters() {
     });
 
     const remove = document.createElement('button');
-    remove.textContent = '✕';
+    remove.className = 'remove';
+    remove.textContent = '×';
     remove.title = 'Remove fighter';
     remove.disabled = settings.fighters.length <= 2;
     remove.addEventListener('click', () => {
@@ -198,18 +207,28 @@ $('random').addEventListener('click', () => {
   applyFighters();
 });
 
-const arenaButtons = [...$('arena').querySelectorAll<HTMLButtonElement>('button')];
-function syncArena() {
-  for (const b of arenaButtons) b.classList.toggle('on', b.dataset.v === settings.arena);
+function bindSegmented<K extends 'arena' | 'theme'>(id: K, onChange: () => void) {
+  const buttons = [...$(id).querySelectorAll<HTMLButtonElement>('button')];
+  const sync = () => {
+    for (const b of buttons) b.classList.toggle('on', b.dataset.v === settings[id]);
+  };
+  for (const b of buttons) {
+    b.addEventListener('click', () => {
+      settings[id] = b.dataset.v as Settings[K];
+      sync();
+      saveSettings();
+      onChange();
+    });
+  }
+  sync();
 }
-for (const b of arenaButtons) {
-  b.addEventListener('click', () => {
-    settings.arena = b.dataset.v as ArenaShape;
-    syncArena();
-    saveSettings();
-    restart();
-  });
+bindSegmented('arena', restart);
+bindSegmented('theme', syncTheme);
+
+function syncTheme() {
+  document.documentElement.dataset.theme = settings.theme;
 }
+syncTheme();
 
 function bindRange(id: 'gravity' | 'speed', format: (v: number) => string, onChange: (v: number) => void) {
   const input = $<HTMLInputElement>(id);
@@ -253,8 +272,10 @@ pauseBtn.addEventListener('click', () => {
 });
 
 renderFighters();
-syncArena();
 syncPause();
+
+// Canvas text only uses a web font once it's loaded, so request the weights up front.
+for (const w of [600, 700, 800]) void document.fonts.load(`${w} 32px ${FONT}`);
 
 // ---------- loop ----------
 
@@ -266,7 +287,7 @@ function frame(now: number) {
   if (settings.autoRematch && game.winner !== undefined && game.overTime > 4.5) restart();
 
   ctx.setTransform(scale, 0, 0, scale, 0, 0);
-  render(ctx, game, { trails: settings.trails, paused, autoRematch: settings.autoRematch });
+  render(ctx, game, { theme: settings.theme, trails: settings.trails, paused, autoRematch: settings.autoRematch });
   requestAnimationFrame(frame);
 }
 requestAnimationFrame(frame);
