@@ -47,7 +47,7 @@ export interface Arrow {
   dead: boolean;
 }
 
-/** A Spider's strand, stretched between two of its wall bounces. */
+/** A Spider's strand: pinned to the wall at `a`, its other end `b` follows the Spider's edge. */
 export interface Web {
   a: Vec;
   b: Vec;
@@ -302,7 +302,7 @@ export class Game {
 
   /** `speed` is how fast the ball was moving into the wall. */
   private wallBounce(b: Ball, x: number, y: number, speed: number) {
-    b.weapon.onWallBounce(this, b);
+    b.weapon.onWallBounce(this, b, x, y);
     if (this.time - b.lastBounceSound > 0.06) {
       b.lastBounceSound = this.time;
       this.sfx.bounce(speed / 900);
@@ -484,17 +484,26 @@ export class Game {
     this.arrows = this.arrows.filter((a) => !a.dead);
   }
 
-  /** Called by the Spider on each wall bounce: shoots a strand back to its previous bounce. */
-  spinWeb(owner: Ball, from: Vec, to: Vec, maxWebs: number) {
-    this.webs.push({ a: { ...from }, b: { ...to }, owner, age: 0 });
+  /** Called by the Spider on each wall bounce: pins a new strand at the wall, attached to the Spider. */
+  spinWeb(owner: Ball, at: Vec, maxWebs: number) {
+    this.webs.push({ a: { ...at }, b: { x: owner.x, y: owner.y }, owner, age: 0 });
     const mine = this.webs.filter((w) => w.owner.team === owner.team);
     if (mine.length > maxWebs) this.webs.splice(this.webs.indexOf(mine[0]), 1);
     this.sfx.web();
   }
 
   private updateWebs(dt: number) {
-    for (const w of this.webs) w.age += dt;
-    this.webs = this.webs.filter((w) => w.age < WEB_LIFE);
+    this.webs = this.webs.filter((w) => w.age < WEB_LIFE && w.owner.alive);
+    for (const w of this.webs) {
+      w.age += dt;
+      // The free end rides along the Spider's edge, on the side facing the anchor.
+      const o = w.owner;
+      const dx = w.a.x - o.x;
+      const dy = w.a.y - o.y;
+      const d = Math.hypot(dx, dy) || 1;
+      const edge = Math.min(d, o.r + 8 * o.scale);
+      w.b = { x: o.x + (dx / d) * edge, y: o.y + (dy / d) * edge };
+    }
 
     const snapped = new Set<Web>();
     for (const w of this.webs) {

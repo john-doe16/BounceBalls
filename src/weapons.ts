@@ -13,7 +13,7 @@ export const WEAPON_INFO: Record<WeaponKind, { label: string; color: string; blu
   scythe: { label: 'Scythe', color: '#14A3A3', blurb: 'Lifesteal grows every hit' },
   bow: { label: 'Bow', color: '#F26B1D', blurb: '+1 arrow per volley every hit' },
   musket: { label: 'Musket', color: '#9C5B2E', blurb: 'Aims, then fires one heavy shot. +1 damage and faster reload every hit' },
-  spider: { label: 'Spider', color: '#C2255C', blurb: 'Bounces spin webs between walls. Webs trap and hurt enemies' },
+  spider: { label: 'Spider', color: '#C2255C', blurb: 'Every bounce pins a web from the wall to the ball. Webs trap and hurt enemies' },
   bomber: { label: 'Bomber', color: '#343A40', blurb: 'Drops bombs that go off when an enemy gets close. Bigger blasts every hit' },
   splitter: { label: 'Splitter', color: '#74B816', blurb: 'Spiky body. Splits in two at half HP, up to four pieces' },
   unarmed: { label: 'Unarmed', color: '#2F6FDE', blurb: 'Faster every bounce, body slams for speed damage' },
@@ -48,7 +48,8 @@ export abstract class Weapon {
   /** Called after this weapon (or one of its projectiles) lands a hit. Returns an upgrade label to pop up. */
   onHit(_g: Game, _self: Ball, _target: Ball): string | void {}
 
-  onWallBounce(_g: Game, _self: Ball) {}
+  /** (x, y) is where the ball struck the wall. */
+  onWallBounce(_g: Game, _self: Ball, _x: number, _y: number) {}
 
   /** Called after this weapon's ball takes damage and survives. */
   onDamaged(_g: Game, _self: Ball) {}
@@ -430,23 +431,9 @@ export class Spider extends Weapon {
   solid = false;
   damage = 2;
   maxWebs = 5;
-  private anchor: Vec | null = null;
-  private t = 0;
 
-  update(_g: Game, b: Ball, dt: number) {
-    this.t += dt;
-    // Face where it's heading so the legs look like they're scuttling.
-    const target = Math.atan2(b.vy, b.vx);
-    const d = Math.atan2(Math.sin(target - this.angle), Math.cos(target - this.angle));
-    this.angle += d * Math.min(1, dt * 6);
-  }
-
-  onWallBounce(g: Game, self: Ball) {
-    const here = { x: self.x, y: self.y };
-    if (this.anchor && Math.hypot(here.x - this.anchor.x, here.y - this.anchor.y) > 90 * self.scale) {
-      g.spinWeb(self, this.anchor, here, this.maxWebs);
-    }
-    this.anchor = here;
+  onWallBounce(g: Game, self: Ball, x: number, y: number) {
+    g.spinWeb(self, { x, y }, this.maxWebs);
   }
 
   onHit() {
@@ -459,39 +446,8 @@ export class Spider extends Weapon {
     return `WEB DMG ${fmt(this.damage)}  WEBS ${this.maxWebs}`;
   }
 
-  draw(ctx: CanvasRenderingContext2D, b: Ball) {
-    const u = b.scale;
-    const P = PX * u;
-    const polar = (a: number, d: number) => ({ x: Math.cos(a) * d, y: Math.sin(a) * d });
-    ctx.save();
-    ctx.translate(b.x, b.y);
-    ctx.strokeStyle = INK;
-    ctx.lineWidth = P;
-    ctx.lineCap = 'square';
-    ctx.lineJoin = 'miter';
-    for (let i = 0; i < 8; i++) {
-      const side = i < 4 ? -1 : 1;
-      const a = this.angle + side * (0.55 + (i % 4) * 0.5);
-      const wiggle = Math.sin(this.t * 16 + i * 1.9) * 0.12;
-      const root = polar(a, b.r * 0.85);
-      const knee = polar(a + side * 0.12 + wiggle, b.r + 13 * u);
-      const foot = polar(a + side * 0.42 + wiggle, b.r + 5 * u);
-      ctx.beginPath();
-      ctx.moveTo(root.x, root.y);
-      ctx.lineTo(knee.x, knee.y);
-      ctx.lineTo(foot.x, foot.y);
-      ctx.stroke();
-    }
-    // Two pixel eyes on the leading edge.
-    ctx.rotate(this.angle);
-    ctx.fillStyle = INK;
-    ctx.fillRect(b.r * 0.62 - P, -2.6 * P, 2 * P, 2 * P);
-    ctx.fillRect(b.r * 0.62 - P, 0.6 * P, 2 * P, 2 * P);
-    ctx.fillStyle = '#FF2D2D';
-    ctx.fillRect(b.r * 0.62 - P / 2, -2.1 * P, P, P);
-    ctx.fillRect(b.r * 0.62 - P / 2, 1.1 * P, P, P);
-    ctx.restore();
-  }
+  /** A plain ball — the webs are the whole look. */
+  draw() {}
 }
 
 export class Bomber extends Weapon {

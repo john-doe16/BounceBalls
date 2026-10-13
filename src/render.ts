@@ -223,34 +223,21 @@ function drawArena(ctx: CanvasRenderingContext2D, g: Game, t: Theme) {
   ctx.restore();
 }
 
-/** Spider strands: a line with cross-ticks, grown in when fresh and fading out at the end of their life. */
+/** Spider strands: plain lines from their wall pin to the Spider, fading out at the end of their life. */
 function drawWebs(ctx: CanvasRenderingContext2D, g: Game, t: Theme) {
   ctx.save();
+  ctx.strokeStyle = t.text;
+  ctx.lineWidth = 2;
   for (const w of g.webs) {
-    const grow = Math.min(1, w.age / 0.12);
     const fade = Math.min(1, (WEB_LIFE - w.age) / 1.5);
-    const ex = w.a.x + (w.b.x - w.a.x) * grow;
-    const ey = w.a.y + (w.b.y - w.a.y) * grow;
-    const len = Math.hypot(ex - w.a.x, ey - w.a.y) || 1;
-    const nx = -(ey - w.a.y) / len;
-    const ny = (ex - w.a.x) / len;
-    ctx.globalAlpha = 0.55 * fade;
-    ctx.strokeStyle = t.text;
-    ctx.lineWidth = 2;
+    ctx.globalAlpha = 0.6 * fade;
     ctx.beginPath();
     ctx.moveTo(w.a.x, w.a.y);
-    ctx.lineTo(ex, ey);
-    for (let d = 18; d < len - 8; d += 22) {
-      const k = d / len;
-      const cx = w.a.x + (ex - w.a.x) * k;
-      const cy = w.a.y + (ey - w.a.y) * k;
-      ctx.moveTo(cx - nx * 5, cy - ny * 5);
-      ctx.lineTo(cx + nx * 5, cy + ny * 5);
-    }
+    ctx.lineTo(w.b.x, w.b.y);
     ctx.stroke();
     ctx.globalAlpha = fade;
     ctx.fillStyle = w.owner.color;
-    for (const p of [w.a, { x: ex, y: ey }]) ctx.fillRect(Math.round(p.x / PX) * PX - PX, Math.round(p.y / PX) * PX - PX, PX * 2, PX * 2);
+    ctx.fillRect(Math.round(w.a.x / PX) * PX - PX, Math.round(w.a.y / PX) * PX - PX, PX * 2, PX * 2);
   }
   ctx.restore();
 }
